@@ -1,0 +1,43 @@
+{
+  "id": "/tools/clinical-reasoning",
+  "name": "임상 추론 파트너 · 송쌤",
+  "short_name": "임상추론",
+  "description": "상담·문진·평가를 바탕으로 내 가설을 검증하는 소크라테스식 임상 추론 멘토",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "clinical-reasoning.html",
+  "scope": "clinical-reasoning.html",
+  "display": "standalone",
+  "background_color": "#101826",
+  "theme_color": "#101826",
+  "categories": [
+    "education",
+    "medical"
+  ],
+  "icons": [
+    {
+      "src": "clinical-reasoning-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "clinical-reasoning-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "clinical-reasoning-icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "clinical-reasoning-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
