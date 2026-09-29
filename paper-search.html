@@ -1887,7 +1887,7 @@ try{
   const secureHost = location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1';
   if('serviceWorker' in navigator && secureHost && window.top===window.self){
     window.addEventListener('load', ()=>{
-      try{ navigator.serviceWorker.register('paper-search-sw.js', {scope:'./paper-search.html'}).catch(()=>{}) }catch(e){}
+      try{ navigator.serviceWorker.register('paper-search-sw.js', {scope:'./paper-search'}).catch(()=>{}) }catch(e){}
     });
   }
 }catch(e){}
