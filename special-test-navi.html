@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<!-- 스페셜 테스트 내비 v3 · MVP 공개판 (2026-09)
+  [홈 화면 앱] special-test-navi-manifest.json · special-test-navi-sw.js · special-test-navi-icon-*.png 를 같은 폴더에 함께 올려야 합니다.
+   - 안드로이드 크롬 「앱 설치/홈 화면에 추가」, 아이폰 Safari 「홈 화면에 추가」 시 노란 T 아이콘으로 표시
+   - 이름·범위·캐시가 모두 이 도구 전용이라 같은 사이트의 다른 도구(임상 추론 파트너 등)와 겹치지 않습니다
+   - 한 번 열어 두면 인터넷이 끊겨도 마지막으로 받은 화면이 열립니다 (전자책 영상 링크는 인터넷 필요)
+  [공유 미리보기] special-test-navi-og.png — 카카오톡·문자로 주소를 보낼 때 뜨는 그림 (https://physiof5.github.io/tools/special-test-navi.html 기준)
+  [탭 아이콘] special-test-navi-icon.svg — T 아이콘 원본(수정용)
+  [v3 내용]
+  · 부위 → 증상 분류 → 근거 기반 검사 순서 (SnNout 선별 → SpPin 확인)
+  · 양성/음성 입력 → 우도비(LR)로 사후확률 갱신, 검증된 클러스터는 클러스터 LR 우선
+  · 검사별 양성 기준(원 연구 판정 기준)과 전자책 영상 연결
+  · 정확도 연구(민감도·특이도 또는 우도비)가 없는 검사는 수록하지 않음
+  · 수치 출처: 각 분류의 '근거' 버튼 / 사이드바 '전체 근거표' -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+<meta name="description" content="부위·증상별 근거 기반 스페셜 테스트 순서를 안내하고, 양성·음성 결과를 우도비로 계산해 사후확률을 보여 주는 물리치료 임상 도구">
+<meta name="theme-color" content="#101826">
+<link rel="manifest" href="special-test-navi-manifest.json">
+<link rel="icon" type="image/svg+xml" href="special-test-navi-icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="special-test-navi-icon-192.png">
+<link rel="apple-touch-icon" href="special-test-navi-icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="테스트내비">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:site_name" content="수술재활 송쌤">
+<meta property="og:title" content="스페셜 테스트 내비 · 송쌤">
+<meta property="og:description" content="근거 기반 검사 순서 · 양성 기준 · 우도비(LR) 사후확률 — 부위와 증상을 고르면 다음 검사를 안내합니다">
+<meta property="og:url" content="https://physiof5.github.io/tools/special-test-navi.html">
+<meta property="og:image" content="https://physiof5.github.io/tools/special-test-navi-og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="노란 T 아이콘과 스페셜 테스트 내비 제목">
+<meta name="twitter:card" content="summary_large_image">
+<title>스페셜 테스트 내비 · 송쌤</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root{
+  --navy-950:#101826;
+  --navy-900:#16202f;
+  --navy-800:#1d2a3d;
+  --navy-700:#27374e;
+  --navy-600:#33465f;
+  --line:#2c3c52;
+  --ink:#eaf0f8;
+  --ink-dim:#9fb0c5;
+  --ink-faint:#66788f;
+  --paper:#f7f8fa;
+  --paper-card:#ffffff;
+  --paper-line:#e4e8ee;
+  --text:#1b2534;
+  --text-dim:#5a6a80;
+  --text-faint:#8795a8;
+  --yellow:#ffd44d;
+  --yellow-deep:#f5b800;
+  --yellow-ink:#3d2f00;
+  --yellow-soft:#fff6d6;
+  --red:#e5484d;
+  --red-soft:#fdeced;
+  --red-ink:#a3262b;
+  --orange:#e8862c;
+  --orange-soft:#fff1e2;
+  --orange-ink:#94500f;
+  --green:#2f9e6e;
+  --green-soft:#e3f5ec;
+  --green-ink:#1d6b48;
+  --teal:#3c8fa3;
+  --slate-soft:#eef1f5;
+  --radius:14px;
+  --radius-sm:9px;
+  --sans:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans);background:var(--navy-950);color:var(--ink);
+  font-size:15px;line-height:1.6;letter-spacing:-.01em;-webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;letter-spacing:inherit}
+::selection{background:var(--yellow);color:var(--yellow-ink)}
+:focus-visible{outline:2px solid var(--yellow-deep);outline-offset:2px}
+
+#app{display:flex;height:100vh;height:100dvh;overflow:hidden}
+
+/* ============ 좌측 패널 ============ */
+#side{
+  width:320px;flex-shrink:0;display:flex;flex-direction:column;
+  background:var(--navy-950);border-right:1px solid var(--line);
+  overflow-y:auto;color-scheme:dark;
+}
+#side::-webkit-scrollbar{width:5px}
+#side::-webkit-scrollbar-thumb{background:var(--navy-600);border-radius:3px}
+.side-head{padding:22px 22px 16px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:8px;cursor:pointer}
+.brand-mark{width:12px;height:12px;background:var(--yellow);flex-shrink:0;transform:translateY(-1px)}
+.brand h1{font-size:17px;font-weight:800;letter-spacing:-.02em}
+.brand-sub{margin-top:6px;font-size:12px;color:var(--ink-faint);padding-left:20px}
+
+.side-sec-title{font-size:11px;font-weight:800;color:var(--ink-faint);letter-spacing:.06em;margin-bottom:9px}
+.side-regions{padding:16px 22px 14px;border-bottom:1px solid var(--line)}
+.rg-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.rg-btn{
+  text-align:left;padding:8px 11px;border-radius:8px;
+  background:var(--navy-800);border:1px solid var(--line);
+  font-size:13px;font-weight:700;color:var(--ink-dim);transition:all .12s;
+  display:flex;justify-content:space-between;align-items:center;gap:6px;
+}
+.rg-btn:hover{border-color:var(--ink-faint);color:var(--ink)}
+.rg-btn.on{background:var(--yellow);border-color:var(--yellow);color:var(--yellow-ink)}
+.rg-btn .rg-dot{width:6px;height:6px;border-radius:50%;background:var(--yellow);flex-shrink:0}
+.rg-btn.on .rg-dot{background:var(--yellow-ink)}
+
+.side-cats{flex:1;padding:14px 12px 18px}
+.sc-group{margin-bottom:12px}
+.sc-gname{font-size:11px;font-weight:800;color:var(--ink-faint);letter-spacing:.04em;padding:0 10px;margin-bottom:4px}
+.sc-item{
+  width:100%;text-align:left;padding:8px 10px 9px;border-radius:var(--radius-sm);
+  display:flex;gap:10px;align-items:flex-start;transition:background .12s;position:relative;
+}
+.sc-item:hover{background:var(--navy-800)}
+.sc-item.on{background:var(--navy-800)}
+.sc-item.on::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--yellow)}
+.sc-text{flex:1;min-width:0}
+.sc-name{display:block;font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.4}
+.sc-cue{display:block;font-size:11.5px;color:var(--ink-faint);line-height:1.45;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-red{color:#ff9296;font-weight:800;font-size:11px;margin-left:4px}
+.pbadge{
+  flex-shrink:0;font-size:11px;font-weight:800;padding:2px 7px;border-radius:100px;margin-top:1px;
+  background:var(--navy-700);color:var(--ink-dim);font-variant-numeric:tabular-nums;
+}
+.pbadge.z-out{background:rgba(47,158,110,.2);color:#6fd3a3}
+.pbadge.z-low{background:rgba(60,143,163,.2);color:#8fd0de}
+.pbadge.z-mid{background:var(--navy-700);color:var(--ink-dim)}
+.pbadge.z-high{background:rgba(232,134,44,.2);color:#f0a860}
+.pbadge.z-in{background:rgba(229,72,77,.22);color:#ff9296}
+
+.side-foot{padding:12px 22px 18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.sf-row{display:flex;gap:6px}
+.sf-btn{
+  flex:1;font-size:12px;font-weight:700;color:var(--ink-dim);padding:8px 6px;border-radius:8px;
+  border:1px solid var(--line);background:var(--navy-900);transition:all .12s;
+}
+.sf-btn:hover{color:var(--ink);border-color:var(--ink-faint)}
+.sf-btn.armed,.sf-btn.armed:hover{color:var(--yellow-ink);background:var(--yellow);border-color:var(--yellow)}
+.sf-note{font-size:11px;color:var(--ink-faint);line-height:1.5;margin-top:4px}
+
+/* ============ 우측 본문 ============ */
+#mainCol{flex:1;display:flex;flex-direction:column;background:var(--paper);color:var(--text);min-width:0}
+.top{
+  height:58px;flex-shrink:0;display:flex;align-items:center;gap:10px;
+  padding:0 22px;background:var(--paper-card);border-bottom:1px solid var(--paper-line);
+}
+.top-titles{min-width:0;flex:1}
+.top-title{font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em}
+.top-sub{font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+.tbtn{
+  display:flex;align-items:center;gap:6px;
+  font-size:12.5px;font-weight:700;color:var(--text-dim);
+  padding:7px 12px;border-radius:var(--radius-sm);border:1px solid var(--paper-line);
+  background:var(--paper-card);transition:all .12s;white-space:nowrap;
+}
+.tbtn:hover{color:var(--text);border-color:#c9d2de}
+.tbtn svg{width:14px;height:14px;flex-shrink:0}
+.tbtn.icon{padding:7px 9px}
+#backBtn{display:none}
+#mobileToggle{display:none}
+
+#scroll{flex:1;overflow-y:auto;scroll-behavior:smooth}
+#inner{max-width:760px;margin:0 auto;padding:26px 26px 60px}
+
+/* 공통 카드 */
+.card{background:var(--paper-card);border:1px solid var(--paper-line);border-radius:var(--radius);padding:18px 20px;margin-bottom:14px}
+.card-label{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;color:var(--text-dim);letter-spacing:.04em;margin-bottom:10px}
+.card-label::before{content:"";width:8px;height:8px;background:var(--yellow)}
+.card-label .cl-right{margin-left:auto;font-weight:600;letter-spacing:0;color:var(--text-faint);font-size:11.5px}
+
+/* 홈 */
+.home-hero{padding:4px 2px 6px}
+.home-hero .e-mark{width:34px;height:6px;background:var(--yellow);margin-bottom:18px}
+.home-hero h2{font-size:25px;font-weight:800;letter-spacing:-.03em;line-height:1.32;margin-bottom:10px}
+.home-hero p{font-size:14.5px;color:var(--text-dim);margin-bottom:20px}
+.rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.rule{border-radius:var(--radius);padding:16px 17px;border:1px solid var(--paper-line);background:var(--paper-card)}
+.rule-tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:5px;margin-bottom:9px}
+.rule.out .rule-tag{background:var(--green-soft);color:var(--green-ink)}
+.rule.in .rule-tag{background:var(--orange-soft);color:var(--orange-ink)}
+.rule h3{font-size:16px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.rule p{font-size:13px;color:var(--text-dim);line-height:1.55}
+.rule b{color:var(--text)}
+.home-sec{font-size:12px;font-weight:800;color:var(--text-dim);letter-spacing:.05em;margin:4px 0 10px}
+.region-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+.region-card{
+  text-align:left;background:var(--paper-card);border:1px solid var(--paper-line);border-radius:12px;
+  padding:13px 14px;transition:all .12s;
+}
+.region-card:hover{border-color:var(--navy-900);transform:translateY(-1px)}
+.region-card .rc-n{display:block;font-size:15px;font-weight:800;letter-spacing:-.02em}
+.region-card .rc-en{display:block;font-size:11px;color:var(--text-faint);margin-top:1px}
+.region-card .rc-c{display:block;font-size:11.5px;color:var(--text-dim);margin-top:8px}
+.steps{display:flex;flex-direction:column;gap:12px}
+.step{display:flex;gap:12px;align-items:flex-start}
+.step-num{
+  width:24px;height:24px;flex-shrink:0;border-radius:50%;background:var(--navy-900);color:var(--yellow);
+  font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;
+}
+.step div{font-size:14px;padding-top:1px}
+.step span{color:var(--text-dim)}
+
+/* 부위 화면 */
+.region-head{margin:2px 2px 16px}
+.region-head h2{font-size:22px;font-weight:800;letter-spacing:-.03em}
+.region-head p{font-size:13.5px;color:var(--text-dim);margin-top:3px}
+.grp{margin-bottom:18px}
+.grp-name{font-size:12px;font-weight:800;color:var(--text-dim);letter-spacing:.04em;margin:0 2px 8px;display:flex;align-items:center;gap:8px}
+.grp-name::after{content:"";flex:1;height:1px;background:var(--paper-line)}
+.cat-card{
+  width:100%;text-align:left;display:flex;gap:14px;align-items:center;
+  background:var(--paper-card);border:1px solid var(--paper-line);border-radius:12px;
+  padding:13px 16px;margin-bottom:8px;transition:all .12s;
+}
+.cat-card:hover{border-color:var(--navy-900)}
+.cat-card .cc-main{flex:1;min-width:0}
+.cat-card .cc-n{display:block;font-size:15px;font-weight:800;letter-spacing:-.02em}
+.cat-card .cc-en{font-size:11.5px;color:var(--text-faint);font-weight:600;margin-left:6px}
+.cat-card .cc-cue{display:block;font-size:12.5px;color:var(--text-dim);margin-top:3px;line-height:1.5}
+.cat-card .cc-n .redtag{font-size:10.5px;font-weight:800;color:var(--red-ink);background:var(--red-soft);padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:2px}
+.cat-card .cc-arrow{color:#b6c1cf;flex-shrink:0}
+.cat-card .pbadge{background:var(--slate-soft);color:var(--text-dim)}
+.cat-card .pbadge.z-out{background:var(--green-soft);color:var(--green-ink)}
+.cat-card .pbadge.z-low{background:#e3f2f6;color:#23687a}
+.cat-card .pbadge.z-high{background:var(--orange-soft);color:var(--orange-ink)}
+.cat-card .pbadge.z-in{background:var(--red-soft);color:var(--red-ink)}
+
+/* 세션 헤더 */
+.s-cue{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--text-dim);line-height:1.55}
+.s-cue .ic{flex-shrink:0;width:18px;height:18px;margin-top:1px;color:var(--text-faint)}
+.pre-row{display:flex;align-items:center;gap:10px;margin-top:13px;flex-wrap:wrap}
+.pre-lab{font-size:12.5px;font-weight:800;color:var(--text)}
+.pre-lab small{display:block;font-size:11px;font-weight:600;color:var(--text-faint)}
+.seg{display:flex;background:var(--slate-soft);border-radius:9px;padding:3px;gap:3px;margin-left:auto}
+.seg button{
+  padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:700;color:var(--text-dim);transition:all .12s;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.seg button.on{background:var(--navy-900);color:var(--yellow)}
+
+/* 확률 카드 */
+.prob{padding:18px 20px 16px}
+.prob-top{display:flex;align-items:flex-end;gap:12px;margin-bottom:12px}
+.prob-num{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.prob-lab{font-size:14px;font-weight:800;padding:4px 10px;border-radius:7px;margin-bottom:3px}
+.prob-top .pt-right{margin-left:auto;text-align:right;font-size:12px;color:var(--text-dim);line-height:1.5}
+.prob-top .pt-right b{color:var(--text);font-variant-numeric:tabular-nums}
+.z-none{background:var(--slate-soft);color:var(--text-dim)}
+.z-out{background:var(--green-soft);color:var(--green-ink)}
+.z-low{background:#e3f2f6;color:#23687a}
+.z-mid{background:var(--slate-soft);color:var(--text-dim)}
+.z-high{background:var(--orange-soft);color:var(--orange-ink)}
+.z-in{background:var(--red-soft);color:var(--red-ink)}
+.gauge{position:relative;height:12px;border-radius:6px;background:var(--slate-soft);overflow:visible;margin:4px 0 6px}
+.g-zone{position:absolute;top:0;bottom:0}
+.g-out{left:0;background:#bfe6d2;border-radius:6px 0 0 6px}
+.g-in{right:0;background:#f7c7c9;border-radius:0 6px 6px 0}
+.g-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,rgba(22,32,47,.10),rgba(22,32,47,.22));transition:width .35s ease}
+.g-needle{position:absolute;top:-5px;bottom:-5px;width:4px;margin-left:-2px;border-radius:2px;background:var(--navy-900);transition:left .35s ease;box-shadow:0 0 0 2px #fff}
+.g-pre{position:absolute;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;border:2px solid var(--navy-900);background:#fff;opacity:.55}
+.g-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-faint);font-variant-numeric:tabular-nums}
+.prob-msg{margin-top:12px;padding:10px 12px;border-radius:9px;font-size:13.5px;line-height:1.55;display:flex;gap:9px;align-items:flex-start}
+.prob-msg b{font-weight:800}
+.prob-msg .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:7px;background:currentColor}
+
+/* 다음 검사 */
+.next{border:2px solid var(--yellow-deep);background:#fffdf5;padding:16px 18px}
+.next.stop{border-color:var(--paper-line);background:var(--paper-card)}
+.next-name{font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.3}
+.next-name .k{font-size:13px;font-weight:600;color:var(--text-dim);margin-left:6px}
+.next-why{font-size:13px;color:var(--text-dim);margin-top:4px}
+.next-meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:9px;font-size:12.5px;color:var(--text-dim)}
+.next-meta b{color:var(--text);font-variant-numeric:tabular-nums}
+.next .pn{margin-top:13px}
+.next-tip{margin-top:9px;font-size:12px;color:var(--orange-ink);background:var(--orange-soft);border-radius:7px;padding:6px 10px}
+.stop-note{font-size:13px;color:var(--text-dim);margin-bottom:10px}
+.stop-note b{color:var(--text)}
+
+/* 양성 / 음성 버튼 */
+.pn{display:flex;gap:8px}
+.pn button{
+  flex:1;padding:11px 10px;border-radius:10px;font-size:14.5px;font-weight:800;
+  border:1.5px solid var(--paper-line);background:#fff;color:var(--text-dim);transition:all .12s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.pn button:hover{border-color:#b9c4d2;color:var(--text)}
+.pn button.pos.on{background:var(--red);border-color:var(--red);color:#fff}
+.pn button.neg.on{background:var(--green);border-color:var(--green);color:#fff}
+.pn.pv-on button{flex-direction:column;gap:1px;padding:9px 10px}
+.pn .pv{display:block;font-size:11.5px;font-weight:700;opacity:.72;font-variant-numeric:tabular-nums}
+.pn button.on .pv{opacity:.9}
+.pn.small{flex-shrink:0;gap:5px}
+.pn.small button{flex:none;width:58px;padding:7px 0;font-size:12.5px;border-radius:8px}
+
+/* 검사 목록 */
+.row{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--paper-line)}
+.row:first-of-type{border-top:none;padding-top:4px}
+.row.is-next .r-name::after{content:"다음";font-size:10.5px;font-weight:800;color:var(--yellow-ink);background:var(--yellow);padding:1px 6px;border-radius:4px;margin-left:7px;vertical-align:2px}
+.row.muted{opacity:.5}
+.r-idx{width:22px;height:22px;flex-shrink:0;border-radius:50%;background:var(--slate-soft);color:var(--text-dim);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.row.done .r-idx{background:var(--navy-900);color:var(--yellow)}
+.r-main{flex:1;min-width:0}
+.r-name{font-size:14.5px;font-weight:800;letter-spacing:-.01em;line-height:1.35}
+.r-name .k{font-size:12px;font-weight:600;color:var(--text-dim);margin-left:5px}
+.r-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:4px;font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.r-meta b{color:var(--text);font-weight:700}
+.r-src{color:var(--text-faint)}
+.r-applied{margin-top:4px;font-size:12px;font-weight:700}
+.r-applied.pos{color:var(--red-ink)}
+.r-applied.neg{color:var(--green-ink)}
+.r-applied.grey{color:var(--text-faint);font-weight:600}
+.r-tip{margin-top:4px;font-size:11.5px;color:var(--text-faint)}
+.badge{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:5px;letter-spacing:.01em;white-space:nowrap}
+.b-out{background:var(--green-soft);color:var(--green-ink)}
+.b-in{background:var(--orange-soft);color:var(--orange-ink)}
+.b-both{background:var(--navy-900);color:var(--yellow)}
+.b-aux{background:#e3edf8;color:#25567e}
+.b-weak{background:var(--slate-soft);color:var(--text-faint)}
+.b-na{background:var(--slate-soft);color:var(--text-faint)}
+.b-co{background:#eee9f7;color:#5b4a86}
+
+/* 양성 기준 · 전자책 영상 (v3) */
+.next-head{display:flex;align-items:flex-start;gap:8px 12px;flex-wrap:wrap}
+.next-head .next-name{flex:1;min-width:0}
+.pc{display:flex;gap:7px;align-items:flex-start;margin-top:5px;font-size:12.5px;line-height:1.5;color:#34424f}
+.pc-tag{flex-shrink:0;font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:5px;background:var(--slate-soft);color:var(--text-dim);margin-top:1px;white-space:nowrap}
+.pc.big{margin-top:10px;padding:9px 11px;border-radius:9px;background:#fff;border:1px solid #efdca0;font-size:14px;font-weight:600;color:var(--text)}
+.pc.big .pc-tag{background:var(--navy-900);color:var(--yellow);margin-top:2px}
+.r-top{display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap}
+.vid{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:var(--navy-900);background:#e7ecf3;border:1px solid #d5dde8;border-radius:100px;padding:2px 8px 2px 6px;text-decoration:none;white-space:nowrap;line-height:1.5;transition:all .12s}
+.vid:hover{background:#dbe3ee;border-color:#b9c6d6}
+.vid svg{width:11px;height:11px;flex-shrink:0}
+.vid small{font-size:10.5px;font-weight:700;color:var(--text-dim)}
+.vid.big{font-size:12.5px;padding:6px 12px 6px 10px;gap:6px;background:var(--navy-900);border-color:var(--navy-900);color:#fff}
+.vid.big:hover{background:var(--navy-700)}
+.vid.big svg{width:14px;height:14px;color:var(--yellow)}
+.vid.big small{color:var(--ink-dim)}
+.vid.off{color:var(--text-dim);background:var(--slate-soft);border-color:var(--paper-line);font-weight:700}
+.tbl .t-pc{display:block;font-size:11.5px;color:var(--text-dim);margin-top:3px;line-height:1.5}
+
+/* 클러스터 */
+.cl-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cl-dots{display:flex;gap:4px}
+.cl-dots i{width:18px;height:6px;border-radius:3px;background:var(--slate-soft)}
+.cl-dots i.p{background:var(--red)}
+.cl-dots i.n{background:var(--green)}
+.cl-text{font-size:13.5px;font-weight:700}
+.cl-sub{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.55}
+
+/* 감별 */
+.ddx{display:flex;flex-wrap:wrap;gap:7px}
+.ddx button{
+  font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:100px;
+  border:1px solid var(--paper-line);background:var(--paper);color:var(--text);transition:all .12s;
+  display:flex;align-items:center;gap:6px;
+}
+.ddx button:hover{border-color:var(--navy-900)}
+.ddx button .pbadge{background:var(--slate-soft);color:var(--text-dim)}
+.ddx button .pbadge.z-out{background:var(--green-soft);color:var(--green-ink)}
+.ddx button .pbadge.z-in{background:var(--red-soft);color:var(--red-ink)}
+.ddx button .pbadge.z-high{background:var(--orange-soft);color:var(--orange-ink)}
+
+.note{font-size:13px;color:#3a4759;line-height:1.65}
+.note-src{margin-top:10px;font-size:11.5px;color:var(--text-faint);line-height:1.55}
+.link-btn{font-size:12.5px;font-weight:700;color:var(--text-dim);text-decoration:underline;text-underline-offset:3px;margin-top:10px}
+.link-btn:hover{color:var(--text)}
+
+/* 모달 */
+.modal{position:fixed;inset:0;background:rgba(10,15,24,.6);z-index:90;display:none;align-items:center;justify-content:center;padding:18px}
+.modal.show{display:flex}
+.modal-card{width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;background:var(--paper-card);color:var(--text);border-radius:var(--radius);overflow:hidden}
+.modal-head{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--paper-line)}
+.modal-head h3{font-size:15.5px;font-weight:800;letter-spacing:-.02em}
+.modal-head button{margin-left:auto;font-size:22px;color:var(--text-dim);line-height:1;padding:0 4px}
+.modal-body{padding:18px 20px 22px;overflow-y:auto;font-size:13.5px;line-height:1.65;color:#2a3646}
+.modal-body h4{font-size:14px;font-weight:800;color:var(--text);margin:18px 0 8px;display:flex;align-items:center;gap:7px}
+.modal-body h4:first-child{margin-top:0}
+.modal-body h4::before{content:"";width:8px;height:8px;background:var(--yellow)}
+.modal-body p{margin-bottom:9px}
+.modal-body ul{padding-left:18px;margin-bottom:10px}
+.modal-body li{margin-bottom:4px}
+.modal-body li::marker{color:var(--yellow-deep)}
+.modal-body b{color:var(--text)}
+.tbl-wrap{overflow-x:auto;margin-bottom:12px;border:1px solid var(--paper-line);border-radius:10px}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px}
+.tbl th{background:var(--navy-900);color:var(--ink);font-weight:700;padding:7px 10px;text-align:left;white-space:nowrap}
+.tbl td{padding:7px 10px;border-top:1px solid var(--paper-line);vertical-align:top;font-variant-numeric:tabular-nums}
+.tbl td.num{text-align:right;white-space:nowrap}
+.tbl tr.grp td{background:var(--slate-soft);font-weight:800;color:var(--text)}
+.tbl .t-k{display:block;font-size:11.5px;color:var(--text-faint)}
+.refs{font-size:12px;color:var(--text-dim);line-height:1.6}
+.refs li{margin-bottom:5px}
+.lr-table td:first-child{font-weight:700}
+
+/* 토스트 */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+  background:var(--navy-900);color:var(--ink);font-size:13px;font-weight:700;padding:10px 16px;border-radius:10px;transition:all .2s;z-index:120}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.foot-note{text-align:center;font-size:11px;color:var(--text-faint);margin-top:18px;line-height:1.6}
+
+/* ============ 모바일 ============ */
+@media (max-width:900px){
+  #side{
+    position:fixed;inset:0 auto 0 0;z-index:50;transform:translateX(-100%);
+    transition:transform .25s ease;width:min(320px,88vw);
+  }
+  #side.open{transform:translateX(0);box-shadow:20px 0 60px rgba(0,0,0,.4)}
+  #sideDim{display:none;position:fixed;inset:0;background:rgba(10,15,24,.55);z-index:49}
+  #sideDim.show{display:block}
+  #mobileToggle{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;border:1px solid var(--paper-line);flex-shrink:0}
+  #mobileToggle svg{width:17px;height:17px;stroke:var(--text)}
+  .top{padding:0 12px;gap:8px}
+  .tbtn .t-txt{display:none}
+  .tbtn{padding:7px 9px}
+  #inner{padding:16px 14px 50px}
+  .region-grid{grid-template-columns:repeat(2,1fr)}
+  .rule-grid{grid-template-columns:1fr}
+  .home-hero h2{font-size:21px}
+  .prob-num{font-size:34px}
+  .card{padding:15px 15px}
+  .seg{margin-left:0;width:100%}
+  .seg button{flex:1;padding:7px 4px}
+  .row{flex-wrap:wrap;gap:8px 10px}
+  .row .pn.small{width:100%;padding-left:32px}
+  .row .pn.small button{flex:1;width:auto}
+}
+@media (max-width:420px){
+  .top-sub{display:none}
+  .prob-top{flex-wrap:wrap}
+  .prob-top .pt-right{margin-left:0;text-align:left;width:100%}
+}
+
+/* ============ 인쇄 ============ */
+@media print{
+  body{background:#fff}
+  #side,#sideDim,.top-actions,#mobileToggle,#backBtn,.pn,.next,.modal,#toast,.vid{display:none !important}
+  #app{display:block;height:auto}
+  #mainCol{display:block}
+  #scroll{overflow:visible}
+  #inner{max-width:none;padding:0}
+  .card{break-inside:avoid;border-color:#ccc}
+}
+
+/* 공개판 표시 */
+.ver-tag{font-size:10px;font-weight:800;letter-spacing:.03em;color:var(--yellow);white-space:nowrap;
+  border:1px solid rgba(255,212,77,.42);border-radius:999px;padding:0 7px;line-height:17px;transform:translateY(-2px)}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sideDim"></div>
+
+  <aside id="side" aria-label="부위와 증상 선택">
+    <div class="side-head">
+      <div class="brand" id="brandHome" role="button" tabindex="0" aria-label="처음 화면">
+        <div class="brand-mark"></div>
+        <h1>스페셜 테스트 내비</h1><span class="ver-tag" title="시범 공개판">v3 · MVP</span>
+      </div>
+      <div class="brand-sub">근거 기반 검사 순서 · by <span style="white-space:nowrap">수술재활 송쌤</span></div>
+    </div>
+
+    <div class="side-regions">
+      <div class="side-sec-title">부위</div>
+      <div class="rg-grid" id="regionGrid"></div>
+    </div>
+
+    <div class="side-cats" id="sideCats"></div>
+
+    <div class="side-foot">
+      <div class="sf-row">
+        <button type="button" class="sf-btn" id="helpBtn">사용법·원리</button>
+        <button type="button" class="sf-btn" id="allEvBtn">전체 근거표</button>
+      </div>
+      <button type="button" class="sf-btn" id="newPtBtn">새 환자 (전체 초기화)</button>
+      <div class="sf-note">임상 판단 보조 도구입니다. 결과는 확률 추정치이며 진단을 대신하지 않습니다.</div>
+    </div>
+  </aside>
+
+  <div id="mainCol">
+    <div class="top">
+      <button id="mobileToggle" aria-label="부위·증상 메뉴">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <button class="tbtn icon" id="backBtn" aria-label="뒤로">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="top-titles">
+        <div class="top-title" id="topTitle">스페셜 테스트 내비</div>
+        <div class="top-sub" id="topSub">부위를 고르면 증상별 검사 순서를 안내합니다</div>
+      </div>
+      <div class="top-actions" id="topActions">
+        <button class="tbtn" id="evBtn" title="근거 보기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          <span class="t-txt">근거</span>
+        </button>
+        <button class="tbtn" id="copyBtn" title="평가 기록 복사">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          <span class="t-txt">기록 복사</span>
+        </button>
+        <button class="tbtn" id="resetBtn" title="이 증상의 결과 초기화">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          <span class="t-txt">초기화</span>
+        </button>
+      </div>
+    </div>
+    <div id="scroll"><div id="inner"></div></div>
+  </div>
+</div>
+
+<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="modalTitle"></h3>
+      <button type="button" id="modalClose" aria-label="닫기">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ═══════════════ 데이터 ═══════════════
+   sn/sp : 원문 보고값 (0~1)
+   lrp/lrn : 원문이 우도비를 직접 보고한 경우 그 값을 우선 사용
+   co : 클러스터 전용 항목 (단독 우도비 없음 — 근거는 해당 클러스터 연구)
+   nolr : 정확도 근거가 부족해 확률 계산에서 제외 (v2부터 해당 항목 없음)
+   100%로 보고된 값은 계산 시 97%로 보정 (소표본 과대추정 방지)
+
+   수록 기준 (v2): 정확도 연구에서 민감도·특이도(또는 우도비)가 보고된 검사만 수록.
+   v2에서 삭제 — Cozen·Maudsley·Mill(특이도 연구 없음: Saroja 2014는 비환자 4명, Dones 2014는 민감도만),
+   Press test(11명, 특이도 미보고), Sulcus sign(원 정확도 연구 확인 불가 — 종설·신뢰도 연구 인용뿐) */
+
+const REFS = {
+  park05: 'Park HB, et al. Diagnostic accuracy of clinical tests for the different degrees of subacromial impingement syndrome. J Bone Joint Surg Am. 2005;87(7):1446-55.',
+  hegedus12: 'Hegedus EJ, et al. Which physical examination tests provide clinicians with the most value when examining the shoulder? Update of a systematic review with meta-analysis. Br J Sports Med. 2012;46(14):964-78.',
+  gismervik17: 'Gismervik SØ, et al. Physical examination tests of the shoulder: a systematic review and meta-analysis of diagnostic test performance. BMC Musculoskelet Disord. 2017;18:41.',
+  chrono04: 'Chronopoulos E, et al. Diagnostic value of physical tests for isolated chronic acromioclavicular lesions. Am J Sports Med. 2004;32(3):655-61.',
+  walton04: 'Walton J, et al. Diagnostic values of tests for acromioclavicular joint pain. J Bone Joint Surg Am. 2004;86(4):807-12.',
+  castoldi09: 'Castoldi F, Blonna D, Hertel R. External rotation lag sign revisited: accuracy for diagnosis of full thickness supraspinatus tear. J Shoulder Elbow Surg. 2009;18(4):529-34.',
+  hertel96: 'Hertel R, et al. Lag signs in the diagnosis of rotator cuff rupture. J Shoulder Elbow Surg. 1996;5(4):307-13.',
+  laedermann21: 'Lädermann A, et al. Diagnostic accuracy of clinical tests for subscapularis tears: a systematic review and meta-analysis. Orthop J Sports Med. 2021;9(9):23259671211042011.',
+  kappe18: 'Kappe T, et al. Diagnostic performance of clinical tests for subscapularis tendon tears. Knee Surg Sports Traumatol Arthrosc. 2018;26(1):176-81.',
+  farber06: 'Farber AJ, et al. Clinical assessment of three common tests for traumatic anterior shoulder instability. J Bone Joint Surg Am. 2006;88(7):1467-74.',
+  lo04: 'Lo IK, et al. An evaluation of the apprehension, relocation, and surprise tests for anterior shoulder instability. Am J Sports Med. 2004;32(2):301-7.',
+  kim05: 'Kim SH, et al. The Kim test: a novel test for posteroinferior labral lesion of the shoulder — a comparison to the jerk test. Am J Sports Med. 2005;33(8):1188-92.',
+  jia08: 'Jia X, et al. Clinical evaluation of the shoulder shrug sign. Clin Orthop Relat Res. 2008;466(11):2813-9.',
+  carbone10: 'Carbone S, et al. Coracoid pain test: a new clinical sign of shoulder adhesive capsulitis. Int Orthop. 2010;34(3):385-8.',
+  kim01: 'Kim SH, et al. Biceps load test II: a clinical test for SLAP lesions of the shoulder. Arthroscopy. 2001;17(2):160-4.',
+  kibler09: 'Kibler WB, et al. Clinical utility of traditional and new tests in the diagnosis of biceps tendon injuries and SLAP lesions. Am J Sports Med. 2009;37(9):1840-7.',
+  holtby04: 'Holtby R, Razmjou H. Accuracy of the Speed\'s and Yergason\'s tests in detecting biceps pathology and SLAP lesions. Arthroscopy. 2004;20(3):231-6.',
+  novak94: 'Novak CB, et al. Provocative testing for cubital tunnel syndrome. J Hand Surg Am. 1994;19(5):817-20.',
+  odriscoll05: 'O\'Driscoll SW, Lawton RL, Smith AM. The "moving valgus stress test" for medial collateral ligament tears of the elbow. Am J Sports Med. 2005;33(2):231-9.',
+  appelboam08: 'Appelboam A, et al. Elbow extension test to rule out elbow fracture: multicentre, prospective validation and observational study. BMJ. 2008;337:a2428.',
+  odriscoll07: 'O\'Driscoll SW, Goncalves LB, Dietz P. The hook test for distal biceps tendon avulsion. Am J Sports Med. 2007;35(11):1865-9.',
+  macdermid04: 'MacDermid JC, Wessel J. Clinical diagnosis of carpal tunnel syndrome: a systematic review. J Hand Ther. 2004;17(2):309-19.',
+  wainner05: 'Wainner RS, et al. Development of a clinical prediction rule for the diagnosis of carpal tunnel syndrome. Arch Phys Med Rehabil. 2005;86(4):609-18.',
+  goubau14: 'Goubau JF, et al. The wrist hyperflexion and abduction of the thumb (WHAT) test: a more specific and sensitive test to diagnose de Quervain tenosynovitis than the Eichhoff\'s test. J Hand Surg Eur. 2014;39(3):286-92.',
+  parvizi98: 'Parvizi J, et al. Combining the clinical signs improves diagnosis of scaphoid fractures. J Hand Surg Br. 1998;23(3):324-7.',
+  tay07: 'Tay SC, Tomita K, Berger RA. The "ulnar fovea sign" for defining ulnar wrist pain: an analysis of sensitivity and specificity. J Hand Surg Am. 2007;32(4):438-44.',
+  wainner03: 'Wainner RS, et al. Reliability and diagnostic accuracy of the clinical examination and patient self-report measures for cervical radiculopathy. Spine. 2003;28(1):52-62.',
+  gillard01: 'Gillard J, et al. Diagnosing thoracic outlet syndrome: contribution of provocative tests, ultrasonography, electrophysiology, and helical CT in 48 patients. Joint Bone Spine. 2001;68(5):416-24.',
+  ogince07: 'Ogince M, et al. The diagnostic validity of the cervical flexion-rotation test in C1/2-related cervicogenic headache. Man Ther. 2007;12(3):256-62.',
+  cook10m: 'Cook C, et al. Clustered clinical findings for diagnosis of cervical spine myelopathy. J Man Manip Ther. 2010;18(4):175-80.',
+  stiell03: 'Stiell IG, et al. The Canadian C-spine rule versus the NEXUS low-risk criteria in patients with trauma. N Engl J Med. 2003;349(26):2510-8.',
+  uitvlugt88: 'Uitvlugt G, Indenbaum S. Clinical assessment of atlantoaxial instability using the Sharp-Purser test. Arthritis Rheum. 1988;31(7):918-22.',
+  deville00: 'Devillé WL, et al. The test of Lasègue: systematic review of the accuracy in diagnosing herniated discs. Spine. 2000;25(9):1140-7.',
+  majlesi08: 'Majlesi J, et al. The sensitivity and specificity of the Slump and the Straight Leg Raising tests in patients with lumbar disc herniation. J Clin Rheumatol. 2008;14(2):87-91.',
+  suri10: 'Suri P, et al. Does this older adult with lower extremity pain have the clinical syndrome of lumbar spinal stenosis? JAMA. 2010;304(23):2628-36.',
+  kasai06: 'Kasai Y, et al. A new evaluation method for lumbar spinal instability: passive lumbar extension test. Phys Ther. 2006;86(12):1661-7.',
+  laslett05: 'Laslett M, et al. Diagnosis of sacroiliac joint pain: validity of individual provocation tests and composites of tests. Man Ther. 2005;10(3):207-18.',
+  reiman15: 'Reiman MP, et al. Diagnostic accuracy of clinical tests for the diagnosis of hip femoroacetabular impingement/labral tear: a systematic review with meta-analysis. Br J Sports Med. 2015;49(12):811.',
+  sutlive08: 'Sutlive TG, et al. Development of a clinical prediction rule for diagnosing hip osteoarthritis in individuals with unilateral hip pain. J Orthop Sports Phys Ther. 2008;38(9):542-50.',
+  grimaldi17: 'Grimaldi A, et al. Utility of clinical tests to diagnose MRI-confirmed gluteal tendinopathy in patients presenting with lateral hip pain. Br J Sports Med. 2017;51(6):519-24.',
+  cacchio12: 'Cacchio A, et al. Reliability and validity of three pain provocation tests used for the diagnosis of chronic proximal hamstring tendinopathy. Br J Sports Med. 2012;46(12):883-7.',
+  martin14: 'Martin HD, et al. Diagnostic accuracy of clinical tests for sciatic nerve entrapment in the gluteal region. Knee Surg Sports Traumatol Arthrosc. 2014;22(4):882-8.',
+  reiman13: 'Reiman MP, et al. Diagnostic accuracy of clinical tests of the hip: a systematic review with meta-analysis. Br J Sports Med. 2013;47(14):893-902.',
+  sokal22: 'Sokal PA, et al. The diagnostic accuracy of clinical tests for anterior cruciate ligament tears are comparable but the Lachman test has been previously overestimated. Knee Surg Sports Traumatol Arthrosc. 2022;30(10):3287-303.',
+  benjaminse06: 'Benjaminse A, Gokeler A, van der Schans CP. Clinical diagnosis of an anterior cruciate ligament rupture: a meta-analysis. J Orthop Sports Phys Ther. 2006;36(5):267-88.',
+  rubinstein94: 'Rubinstein RA Jr, et al. The accuracy of the clinical examination in the setting of posterior cruciate ligament injuries. Am J Sports Med. 1994;22(4):550-7.',
+  kopkow13: 'Kopkow C, et al. Physical examination tests for the diagnosis of posterior cruciate ligament rupture: a systematic review. J Orthop Sports Phys Ther. 2013;43(11):804-13.',
+  kastelein08: 'Kastelein M, et al. Assessing medial collateral ligament knee lesions in general practice. Am J Med. 2008;121(11):982-8.',
+  ahmad09: 'Ahmad CS, et al. The moving patellar apprehension test for lateral patellar instability. Am J Sports Med. 2009;37(4):791-6.',
+  smith15: 'Smith BE, et al. Special tests for assessing meniscal tears within the knee: a systematic review and meta-analysis. Evid Based Med. 2015;20(3):88-97.',
+  hegedus07: 'Hegedus EJ, et al. Physical examination tests for assessing a torn meniscus in the knee: a systematic review with meta-analysis. J Orthop Sports Phys Ther. 2007;37(9):541-50.',
+  akseki04: 'Akseki D, et al. A new weight-bearing meniscal test and a comparison with McMurray\'s test and joint line tenderness. Arthroscopy. 2004;20(9):951-8.',
+  lowery06: 'Lowery DJ, et al. A clinical composite score accurately detects meniscal pathology. Arthroscopy. 2006;22(11):1174-9.',
+  goossens15: 'Goossens P, et al. Validity of the Thessaly test in evaluating meniscal tears compared with arthroscopy. J Orthop Sports Phys Ther. 2015;45(1):18-24.',
+  nunes13: 'Nunes GS, et al. Clinical test for diagnosis of patellofemoral pain syndrome: systematic review with meta-analysis. Phys Ther Sport. 2013;14(1):54-9.',
+  cook10p: 'Cook C, et al. Diagnostic accuracy and association to disability of clinical test findings associated with patellofemoral pain syndrome. Physiother Can. 2010;62(1):17-24.',
+  doberstein08: 'Doberstein ST, et al. The diagnostic value of the Clarke sign in assessing chondromalacia patella. J Athl Train. 2008;43(2):190-6.',
+  altman86: 'Altman R, et al. Development of criteria for the classification and reporting of osteoarthritis: classification of osteoarthritis of the knee. Arthritis Rheum. 1986;29(8):1039-49.',
+  bachmann04: 'Bachmann LM, et al. The accuracy of the Ottawa knee rule to rule out knee fractures: a systematic review. Ann Intern Med. 2004;140(2):121-4.',
+  bachmann03: 'Bachmann LM, et al. Accuracy of Ottawa ankle rules to exclude fractures of the ankle and mid-foot: systematic review. BMJ. 2003;326(7386):417.',
+  vandijk96: 'van Dijk CN, et al. Physical examination is sufficient for the diagnosis of sprained ankles. J Bone Joint Surg Br. 1996;78(6):958-62.',
+  sman15: 'Sman AD, et al. Diagnostic accuracy of clinical tests for ankle syndesmosis injury. Br J Sports Med. 2015;49(5):323-9.',
+  reiman14: 'Reiman M, et al. The utility of clinical measures for the diagnosis of Achilles tendon injuries: a systematic review with meta-analysis. J Athl Train. 2014;49(6):820-9.',
+  degarceau03: 'De Garceau D, et al. The association between diagnosis of plantar fasciitis and Windlass test results. Foot Ankle Int. 2003;24(3):251-5.',
+  pitcher24: 'Pitcher M, et al. Diagnostic accuracy of subjective features and physical examination tests for Morton neuroma: a systematic review. Foot Ankle Orthop. 2024;9(4):24730114241291055.'
+};
+
+const REGIONS = [
+  {id:'sh', n:'어깨', en:'Shoulder'},
+  {id:'el', n:'팔꿈치', en:'Elbow'},
+  {id:'wr', n:'손목·손', en:'Wrist & Hand'},
+  {id:'cx', n:'목·경추', en:'Cervical'},
+  {id:'lx', n:'허리·골반', en:'Lumbar & Pelvis'},
+  {id:'hp', n:'고관절', en:'Hip'},
+  {id:'kn', n:'무릎', en:'Knee'},
+  {id:'an', n:'발목·발', en:'Ankle & Foot'}
+];
+
+/* 개수 기반 클러스터 규칙 — 남은 항목 결과와 무관하게 구간이 확정될 때만 LR 적용 */
+function countRule(items, bands){
+  return function(res){
+    let pos=0, neg=0, unk=0;
+    items.forEach(id=>{ if(res[id]==='+') pos++; else if(res[id]==='-') neg++; else unk++; });
+    const pick = c => bands.findIndex(b => (b.min==null || c>=b.min) && (b.max==null || c<=b.max));
+    const first = pick(pos);
+    let same = true;
+    for(let c=pos; c<=pos+unk; c++){ if(pick(c)!==first){ same=false; break; } }
+    const band = first>=0 ? bands[first] : null;
+    return {
+      pos, neg, unk, n: items.length,
+      done: same,
+      lr: (same && band) ? band.lr : null,
+      t: !same ? '판정 대기' : (band ? band.t : '규칙 구간 밖 — 개별 검사 LR 적용')
+    };
+  };
+}
+
+const CATS = [
+/* ─────────────── 어깨 ─────────────── */
+{ id:'sh-saps', r:'sh', g:'통증 · SPS 계열', n:'견봉하 통증 증후군', en:'Subacromial pain syndrome (SAPS)',
+  cue:'팔 올릴 때(60–120°) 통증 · 머리 위 동작·옆으로 누울 때 통증',
+  tests:[
+    {id:'hk',  n:'Hawkins-Kennedy', k:'호킨스-케네디', sn:.715, sp:.663, s:'Park 2005', pc:"90° 굴곡에서 내회전할 때 어깨 통증", eb:{p:18, v:"X9YiuvQJVJc"}},
+    {id:'pa',  n:'Painful arc', k:'통증 호 징후', sn:.735, sp:.811, s:'Park 2005', pc:"능동 거상 60–120° 구간에서 통증·걸림 (올릴 때·내릴 때 모두 해당)", eb:{p:15, v:"engHP9OA92U"}},
+    {id:'isp', n:'Infraspinatus test', k:'가시아래근 저항 외회전', sn:.416, sp:.901, s:'Park 2005', pc:"팔 옆·팔꿈치 90°에서 저항 외회전 시 버티지 못함 (약화 또는 통증 때문)"},
+    {id:'neer',n:'Neer', k:'니어', sn:.68, sp:.687, s:'Park 2005', pc:"견갑골 고정 후 수동 거상 시 어깨 앞·옆 통증", eb:{p:19, v:"nNyax0iocZo"}},
+    {id:'ec',  n:'Empty can (Jobe)', k:'빈 깡통', sn:.441, sp:.895, s:'Park 2005', pc:"90° 거상(내회전 또는 중립)에서 저항 외전 시 버티지 못함 — 통증만 있으면 음성", eb:{p:16, v:"DeO50UTxwoo"}}
+  ],
+  cl:{ n:'Park 클러스터', items:['hk','pa','isp'], prio:true, s:'Park 2005',
+       rule: countRule(['hk','pa','isp'], [{min:3,lr:10.56,t:'3개 모두 양성 → LR+ 10.56'},{max:0,lr:0.17,t:'3개 모두 음성 → LR− 0.17'}]) },
+  ddx:['sh-ac','sh-ftt','sh-bic','cx-rad'],
+  note:'SAPS 검사는 점액낭염·건병증·부분파열을 구별하지 못합니다(구조물 특정 불가). 메타분석 대표값: Hawkins-Kennedy 79/59, Neer 72/60, 통증 호 53/76 (Hegedus 2012).',
+  refs:['park05','hegedus12'] },
+
+{ id:'sh-ac', r:'sh', g:'통증 · SPS 계열', n:'견봉쇄골(AC) 관절 병변', en:'Acromioclavicular joint lesion',
+  cue:'어깨 꼭대기 국소 통증 · 팔을 가슴 앞으로 가로지를 때 통증',
+  tests:[
+    {id:'cba', n:'Cross-body adduction', k:'수평 내전', sn:.77, sp:.79, s:'Chronopoulos 2004', pc:"수평 내전 시 어깨 위쪽 AC 관절 부위 통증"},
+    {id:'are', n:'AC resisted extension', k:'AC 저항 신전', sn:.72, sp:.85, s:'Chronopoulos 2004', pc:"90° 굴곡·팔꿈치 90°에서 저항 수평 외전 시 AC 관절 통증"},
+    {id:'obac',n:"O'Brien (AC 부위 통증)", k:'능동 압박 검사', sn:.41, sp:.95, s:'Chronopoulos 2004', pc:"엄지 아래 자세 저항 시 어깨 꼭대기(AC) 통증, 손바닥 위 자세에서 줄어듦", eb:{p:23, v:"qkDvVBi0gg8"}},
+    {id:'acp', n:'AC joint tenderness', k:'AC 관절 압통', sn:.96, sp:.10, s:'Walton 2004', pc:"AC 관절 촉진 시 압통"}
+  ],
+  ddx:['sh-saps','cx-rad'],
+  note:'세 검사(수평 내전·저항 신전·O\'Brien)를 함께 쓰면 단독보다 정확도가 높아집니다 (Chronopoulos 2004). AC 압통 수치는 국소마취 주사 기준 연구(Walton 2004) 값이며, 특이도 10%라 양성만으로는 의미가 거의 없습니다.',
+  refs:['chrono04','walton04'] },
+
+{ id:'sh-ftt', r:'sh', g:'근력 저하', n:'회전근개 전층 파열 (극상·극하근)', en:'Full-thickness rotator cuff tear',
+  cue:'팔 들기·외회전 힘 빠짐 · 60세 이상 · 넘어진 뒤 팔 거상 곤란',
+  tests:[
+    {id:'pa2', n:'Painful arc', k:'통증 호 징후', sn:.758, sp:.618, s:'Park 2005 (전층 파열)', pc:"능동 거상 60–120° 구간에서 통증·걸림 (올릴 때·내릴 때 모두 해당)", eb:{p:15, v:"engHP9OA92U"}},
+    {id:'da',  n:'Drop arm', k:'팔 떨어뜨리기', sn:.349, sp:.875, s:'Park 2005 (전층 파열)', pc:"최대 거상 후 천천히 내리다 팔이 툭 떨어지거나 심한 통증", eb:{p:17, v:"JXgRBeqToik"}},
+    {id:'isp2',n:'Infraspinatus test', k:'저항 외회전 약화', sn:.505, sp:.84, s:'Park 2005 (전층 파열)', pc:"팔 옆·팔꿈치 90°에서 저항 외회전 시 버티지 못함 (약화 또는 통증 때문)"},
+    {id:'erls',n:'External rotation lag sign', k:'외회전 지연 징후', sn:.56, sp:.98, s:'Castoldi 2009', tip:'전자책 P.20은 90° 외전(Drop sign 자세)으로 기술 — 이 수치는 20° 거상 기준', pc:"팔꿈치 90°·20° 거상에서 최대 외회전 직전 자세를 유지하지 못하고 되돌아옴", eb:{p:20, v:"iUTxEAOrEMY"}},
+    {id:'ec2', n:'Empty can (약화 기준)', k:'빈 깡통', sn:.526, sp:.824, s:'Park 2005 (전층 파열)', pc:"90° 거상(내회전 또는 중립)에서 저항 외전 시 버티지 못함 — 통증만 있으면 음성", eb:{p:16, v:"DeO50UTxwoo"}}
+  ],
+  cl:{ n:'Park 클러스터 (전층 파열)', items:['pa2','da','isp2'], prio:true, s:'Park 2005',
+       rule: countRule(['pa2','da','isp2'], [{min:3,lr:15.57,t:'3개 모두 양성 → LR+ 15.57'},{max:0,lr:0.16,t:'3개 모두 음성 → LR− 0.16'}]) },
+  ddx:['sh-sub','sh-saps','cx-rad'],
+  note:'60세 이상이면서 클러스터 3개 모두 양성이면 LR+ 28 (Park 2005). 외회전 지연 징후는 양성일 때 확진력이 크지만(특이도 98%) 음성만으로는 배제하지 못합니다 — 원 연구(Hertel 1996)는 민감도 70%·특이도 100%.',
+  refs:['park05','castoldi09','hertel96'] },
+
+{ id:'sh-sub', r:'sh', g:'근력 저하', n:'견갑하근 파열', en:'Subscapularis tear',
+  cue:'내회전 힘 빠짐 · 등 뒤로 손 넣기·배 누르기 약화',
+  tests:[
+    {id:'bh',  n:'Bear hug', k:'베어 허그', sn:.55, sp:.94, s:'Lädermann 2021 (메타)', pc:"손을 반대쪽 어깨에 붙인 채 떼어내는 힘을 버티지 못함 (또는 반대쪽보다 뚜렷이 약함)"},
+    {id:'bp',  n:'Belly press', k:'배 누르기', sn:.34, sp:.96, s:'Kappe 2018', pc:"배를 누를 때 팔꿈치를 앞으로 유지하지 못하고 손목이 굽음", eb:{p:22, v:"cI4GN8NqRdg"}},
+    {id:'lo',  n:'Lift-off', k:'들어올리기', sn:.35, sp:.98, s:'Kappe 2018', pc:"허리 뒤에 댄 손등을 떼어 올리지 못함", eb:{p:21, v:"AgkTH52_PBI"}},
+    {id:'irls',n:'Internal rotation lag sign', k:'내회전 지연 징후', sn:.32, sp:.92, s:'Lädermann 2021 (메타)', tip:'원 연구(Hertel 1996)의 97/96은 이후 연구에서 재현되지 않음', pc:"등에서 떼어 올려 준 손을 놓으면 유지하지 못하고 떨어짐"}
+  ],
+  ddx:['sh-ftt','sh-bic'],
+  note:'메타분석에서 모든 견갑하근 검사의 특이도는 90% 이상, 민감도는 60% 미만입니다 — 양성이면 확진 쪽으로 강하지만 음성만으로는 배제할 수 없어 여러 검사를 함께 시행하세요. 부분 파열은 대부분 놓칩니다.',
+  refs:['laedermann21','kappe18','hertel96'] },
+
+{ id:'sh-ant', r:'sh', g:'불안정성', n:'전방 불안정성', en:'Anterior instability',
+  cue:'던지기 자세(외전·외회전)에서 빠질 듯한 불안감 · 탈구 병력',
+  tests:[
+    {id:'app', n:'Apprehension', k:'전방 불안 (불안감 기준)', sn:.72, sp:.96, s:'Farber 2006', pc:"90° 외전·외회전 시 불안감 — 통증만 있으면 음성", eb:{p:27, v:"hy7zgoEsbzQ"}},
+    {id:'rel', n:'Relocation', k:'재위치 (불안감 해소 기준)', sn:.81, sp:.92, s:'Farber 2006', pc:"상완골두를 뒤로 누르면 불안감이 사라짐", eb:{p:28, v:"JkO8nnWFIwM"}},
+    {id:'sur', n:'Surprise (Anterior release)', k:'서프라이즈', sn:.639, sp:.989, s:'Lo 2004', tip:'46명 연구 — LR+가 매우 크게 계산되지만 신뢰구간이 넓음', pc:"뒤로 누르던 손을 갑자기 떼면 불안감"},
+    {id:'adr', n:'Anterior drawer', k:'전방 전위', sn:.53, sp:.85, s:'Farber 2006', pc:"상완골두를 앞으로 밀 때 평소 불안정 증상 재현 (이동량 등급이 아님)"}
+  ],
+  ddx:['sh-post','sh-slap'],
+  note:'양성 기준은 "통증"이 아니라 "불안감"입니다. 통증을 기준으로 하면 Apprehension의 LR+가 1.1로 떨어져 판별력이 사라집니다 (Farber 2006).',
+  refs:['farber06','lo04'] },
+
+{ id:'sh-post', r:'sh', g:'불안정성', n:'후방 불안정성 · 후하방 관절와순', en:'Posterior instability / posteroinferior labral lesion',
+  cue:'팔을 앞으로 밀 때(푸시업·벤치프레스) 통증·불안정 · 뒤쪽 딸깍',
+  tests:[
+    {id:'kim', n:'Kim test', k:'김 검사', sn:.80, sp:.94, s:'Kim 2005', pc:"축 압박 + 대각선 거상 시 갑작스러운 뒤쪽 어깨 통증 (딸깍 유무 무관)"},
+    {id:'jerk',n:'Jerk test', k:'저크', sn:.73, sp:.98, s:'Kim 2005', pc:"축 압박 + 수평 내전 시 날카로운 어깨 통증 (딸깍 유무 무관)"}
+  ],
+  ddx:['sh-ant','sh-slap'],
+  note:'두 검사를 함께 하면 민감도 97% — 둘 다 음성이면 후하방 관절와순 병변 가능성이 낮습니다 (Kim 2005).',
+  refs:['kim05'] },
+
+{ id:'sh-fs', r:'sh', g:'저가동성', n:'유착성 관절낭염 (동결견)', en:'Adhesive capsulitis',
+  cue:'전 방향 가동범위 제한(특히 외회전) · 야간통 · 40–60대 · 당뇨',
+  tests:[
+    {id:'shrug',n:'Shoulder shrug sign', k:'으쓱 징후', sn:.947, sp:.495, s:'Jia 2008', pc:"팔을 90° 외전하려 할 때 견갑골·어깨 전체가 들림"},
+    {id:'cpt',  n:'Coracoid pain test', k:'오훼돌기 압통', sn:.96, sp:.88, s:'Carbone 2010', tip:'다른 어깨 질환 대비 특이도 0.87–0.89', pc:"오훼돌기 압통이 AC 관절·견봉 앞옆 부위보다 VAS 3점 넘게 큼"}
+  ],
+  ddx:['sh-ftt','sh-saps'],
+  note:'임상 진단 핵심: 수동 외회전이 반대쪽보다 50% 이상 제한 + X-ray 정상(관절염 배제). Shrug sign은 관절염(민감도 91%)·광범위 회전근개 파열에서도 양성입니다.',
+  refs:['jia08','carbone10'] },
+
+{ id:'sh-slap', r:'sh', g:'깊은 통증 · 걸림', n:'상부 관절와순(SLAP) 병변', en:'SLAP lesion',
+  cue:'어깨 깊은 곳 통증 · 걸림·딸깍 · 던지기·머리 위 동작 선수',
+  tests:[
+    {id:'bl2', n:'Biceps load II', k:'이두근 부하 II', sn:.897, sp:.969, s:'Kim 2001', tip:'개발자 단일 연구 — 과대평가 가능', pc:"120° 외전·최대 외회전에서 저항 팔꿈치 굴곡 시 통증 유발·증가"},
+    {id:'mdls',n:'Modified dynamic labral shear', k:'변형 동적 관절와순 전단', sn:.72, sp:.98, s:'Kibler 2009', pc:"120°→60°로 내리는 중 120–90° 구간에서 후방 관절선 통증·걸림"},
+    {id:'cr',  n:'Compression-rotation', k:'압박-회전', sn:.43, sp:.89, s:'Gismervik 2017 (메타)', pc:"상완 장축 압박 + 회전 시 통증 또는 걸림"},
+    {id:'obs', n:"O'Brien (active compression)", k:'오브라이언', sn:.66, sp:.36, s:'Gismervik 2017 (메타)', pc:"엄지 아래 자세 저항 시 어깨 깊은 곳 통증·딸깍, 손바닥 위 자세에서 줄어듦", eb:{p:23, v:"qkDvVBi0gg8"}},
+    {id:'yer', n:'Yergason', k:'요르가손', sn:.20, sp:.92, s:'Gismervik 2017 (메타)', pc:"저항 뒤침 시 어깨 통증", eb:{p:25, v:"_Cjahul5yuI"}}
+  ],
+  ddx:['sh-bic','sh-ant','sh-post'],
+  note:'SLAP 단일 검사의 진단력은 메타분석에서 대부분 약합니다. O\'Brien은 LR+ 1.0 수준으로 SLAP 판별력이 거의 없습니다.',
+  refs:['kim01','kibler09','gismervik17','hegedus12'] },
+
+{ id:'sh-bic', r:'sh', g:'깊은 통증 · 걸림', n:'이두근 장두건 병변', en:'Long head of biceps pathology',
+  cue:'어깨 앞(결절간구) 통증 · 물건 들어 올릴 때 앞쪽 통증',
+  tests:[
+    {id:'uc',  n:'Upper cut', k:'어퍼컷', sn:.73, sp:.78, s:'Kibler 2009', pc:"저항 어퍼컷 동작 시 어깨 앞 통증 또는 통증성 뚝 소리"},
+    {id:'spd', n:'Speed', k:'스피드', sn:.32, sp:.75, s:'Holtby 2004', pc:"팔꿈치 편 채 저항 전방 굴곡 시 결절간구 통증", eb:{p:24, v:"gbG_O9Gv8aQ"}},
+    {id:'ybi', n:'Yergason', k:'요르가손', sn:.43, sp:.79, s:'Holtby 2004', pc:"팔꿈치 90°에서 저항 뒤침 시 결절간구 통증", eb:{p:25, v:"_Cjahul5yuI"}}
+  ],
+  ddx:['sh-slap','sh-sub','sh-saps'],
+  note:'Upper cut과 Speed를 함께 쓰면 단독보다 정확도가 높습니다 (Kibler 2009).',
+  refs:['kibler09','holtby04'] },
+
+/* ─────────────── 팔꿈치 ─────────────── */
+{ id:'el-cub', r:'el', g:'내측 통증 · 저림', n:'팔꿉굴 증후군 (척골신경)', en:'Cubital tunnel syndrome',
+  cue:'4·5번째 손가락 저림 · 팔꿈치를 굽힌 자세 유지 시 악화',
+  tests:[
+    {id:'comb',n:'Flexion + pressure (60초)', k:'굽힘+압박 병합', sn:.98, sp:.95, s:'Novak 1994', pc:"팔꿈치 최대 굴곡 + 팔꿉굴 압박 60초 안에 4·5지 저림", eb:{p:39}},
+    {id:'ppt', n:'Pressure provocation (60초)', k:'압박 유발', sn:.89, sp:.98, s:'Novak 1994', pc:"팔꿈치 20° 굴곡에서 팔꿉굴 바로 몸쪽 압박 60초 안에 4·5지 저림", eb:{p:39, v:"sGm3qlJVr6A"}},
+    {id:'eft', n:'Elbow flexion test (60초)', k:'팔꿈치 굽힘', sn:.75, sp:.99, s:'Novak 1994', pc:"팔꿈치 최대 굴곡 유지 60초 안에 4·5지 저림", eb:{p:39, v:"brN-VLUETVU"}},
+    {id:'tie', n:'Tinel (팔꿈치)', k:'티넬', sn:.70, sp:.98, s:'Novak 1994', pc:"팔꿉굴을 두드릴 때 4·5지로 저림이 뻗침", eb:{p:41, v:"ASRatLbu8i0"}}
+  ],
+  ddx:['cx-rad','cx-tos'],
+  note:'근전도 확진 환자 vs 무증상 대조군 비교 연구라 특이도가 과대평가됐을 수 있습니다. 30초 유지 시 민감도: 병합 91%, 압박 55%, 굽힘 32%.',
+  refs:['novak94'] },
+
+{ id:'el-ucl', r:'el', g:'내측 통증 · 저림', n:'내측 측부인대(UCL) 손상', en:'Ulnar collateral ligament injury',
+  cue:'던지기 동작 중 팔꿈치 안쪽 통증 · 투구 선수',
+  tests:[
+    {id:'mvst',n:'Moving valgus stress', k:'움직이는 외반 스트레스', sn:1.00, sp:.75, s:"O'Driscoll 2005", pc:"외반을 건 채 빠르게 펼 때 120–70° 구간에서 평소 내측 통증 재현"}
+  ],
+  ddx:['el-cub'],
+  note:'21명 소규모 연구입니다. 음성이면 UCL 손상 가능성이 낮습니다(민감도 100% 보고 → 계산은 97%로 보정).',
+  refs:['odriscoll05'] },
+
+{ id:'el-fx', r:'el', g:'외상 · 파열', n:'팔꿈치 골절 선별', en:'Elbow fracture screening',
+  cue:'넘어짐·충격 직후 팔꿈치 통증·부종', red:true, pre:[.10,.25,.50], ro:.02,
+  tests:[
+    {id:'eet', n:'Elbow extension test', k:'팔꿈치 완전 신전', sn:.968, sp:.485, lrn:.03, s:'Appelboam 2008', tip:'LR−는 성인 값(소아 0.11)', pc:"어깨 90° 굴곡·뒤침 자세로 양팔을 펼 때 다친 쪽이 덜 펴짐"}
+  ],
+  ddx:['el-dbt'],
+  note:'완전 신전이 가능하면(음성) 성인 골절 확률은 약 1.6%입니다. 소아는 음성이어도 4.2%라 주의가 필요합니다.',
+  refs:['appelboam08'] },
+
+{ id:'el-dbt', r:'el', g:'외상 · 파열', n:'원위 이두건 완전 파열', en:'Distal biceps tendon rupture',
+  cue:'무거운 물건 들다 뚝 소리 · 팔꿈치 앞 멍 · 뒤침 힘 저하',
+  tests:[
+    {id:'hook',n:'Hook test', k:'훅', sn:1.00, sp:1.00, s:"O'Driscoll 2007", pc:"팔꿈치 90°·능동 뒤침에서 이두건을 손가락으로 걸 수 없음"}
+  ],
+  ddx:['el-fx'],
+  note:'완전 파열 진단에 우수합니다. 부분 파열은 민감도 18%로 놓치기 쉽습니다.',
+  refs:['odriscoll07'] },
+
+/* ─────────────── 손목·손 ─────────────── */
+{ id:'wr-cts', r:'wr', g:'저림', n:'손목굴 증후군', en:'Carpal tunnel syndrome',
+  cue:'엄지~약지 요측 저림 · 밤에 깨서 손을 털게 됨',
+  tests:[
+    {id:'dur', n:'Carpal compression (Durkan)', k:'손목굴 압박', sn:.64, sp:.83, s:'MacDermid 2004 (체계적 고찰)', pc:"손목굴을 엄지로 압박 30초 안에 정중신경 영역 저림", eb:{p:36, v:"OfDuo3CPX1o"}},
+    {id:'phal',n:'Phalen', k:'팔렌', sn:.68, sp:.73, s:'MacDermid 2004 (체계적 고찰)', pc:"손목 최대 굴곡 60초 안에 정중신경 영역 저림", eb:{p:35, v:"TMAD-dhT9PM"}},
+    {id:'tinw',n:'Tinel (손목)', k:'티넬', sn:.50, sp:.77, s:'MacDermid 2004 (체계적 고찰)', pc:"손목굴을 두드릴 때 정중신경 영역으로 저림이 뻗침", eb:{p:41, v:"ASRatLbu8i0"}},
+    {id:'w1', n:'손을 털면 증상 완화', k:'Wainner 항목', co:true},
+    {id:'w2', n:'손목 비율 지수 > 0.67', k:'전후 두께 ÷ 좌우 폭', co:true},
+    {id:'w3', n:'CTQ 증상 심각도 > 1.9', k:'Wainner 항목', co:true},
+    {id:'w4', n:'엄지 정중신경 감각 저하', k:'Wainner 항목', co:true, pc:"엄지 끝 감각이 엄지두덩 기저부보다 둔함"},
+    {id:'w5', n:'나이 > 45세', k:'Wainner 항목', co:true}
+  ],
+  cl:{ n:'Wainner 클러스터', items:['w1','w2','w3','w4','w5'], prio:false, s:'Wainner 2005',
+       rule: countRule(['w1','w2','w3','w4','w5'], [{min:5,lr:18.3,t:'5개 양성 → LR+ 18.3'},{min:4,lr:4.6,t:'4개 양성 → LR+ 4.6'},{min:3,lr:2.1,t:'3개 양성 → LR+ 2.1'},{max:2,lr:0.04,t:'2개 이하 → LR− 0.04 (민감도 98%·특이도 54%로 계산)'}]) },
+  ddx:['cx-rad','el-cub','cx-tos'],
+  note:'유발검사 단독의 진단력은 중간 이하입니다. 확진은 신경전도검사. Wainner 클러스터는 손목 비율 측정과 CTQ 설문이 필요합니다.',
+  refs:['macdermid04','wainner05'] },
+
+{ id:'wr-dq', r:'wr', g:'요측(엄지 쪽) 통증', n:'드퀘르벵 건초염', en:"De Quervain's tenosynovitis",
+  cue:'요골 경상돌기 부위 통증 · 엄지 쓰는 동작(아기 안기·폰 사용) 시 통증',
+  tests:[
+    {id:'what',n:'WHAT test', k:'손목 과굴곡 + 엄지 외전 저항', sn:.99, sp:.29, s:'Goubau 2014', pc:"손목 최대 굴곡 + 엄지 외전 저항 시 첫째 신전근 구획 통증 증가"},
+    {id:'eich',n:'Eichhoff', k:'엄지 감싸 쥐고 척측 편위', sn:.89, sp:.14, s:'Goubau 2014', pc:"엄지를 주먹 안에 쥐고 척측 편위 시 요골 경상돌기 통증", eb:{p:42, v:"8WBVXBx34W0"}}
+  ],
+  ddx:['wr-sca','cx-rad'],
+  note:'흔히 "Finkelstein"이라 부르는 "엄지를 감싸 쥐고 척측 편위"는 Eichhoff 검사이며 특이도 14%로 확진력이 없습니다. 확진용으로 검증된 검사는 아직 없습니다. 두 검사의 특이도는 초음파 음성 7명에서 계산된 값이라 정확도가 낮습니다.',
+  refs:['goubau14'] },
+
+{ id:'wr-sca', r:'wr', g:'요측(엄지 쪽) 통증', n:'주상골 골절 선별', en:'Scaphoid fracture screening',
+  cue:'손 짚고 넘어진 뒤 엄지 쪽 손목 통증', red:true, pre:[.10,.20,.40], ro:.02,
+  tests:[
+    {id:'lc',  n:'Longitudinal compression', k:'엄지 장축 압박', sn:1.00, sp:.48, s:'Parvizi 1998', pc:"엄지 장축 압박 시 주상골 부위 통증"},
+    {id:'stt', n:'Scaphoid tubercle tenderness', k:'주상골 결절 압통', sn:1.00, sp:.30, s:'Parvizi 1998', pc:"주상골 결절 압통"},
+    {id:'asb', n:'Anatomical snuffbox tenderness', k:'해부학적 코담배갑 압통', sn:1.00, sp:.09, s:'Parvizi 1998', pc:"해부학적 코담배갑 압통"}
+  ],
+  cl:{ n:'Parvizi 3징후 병합 (24시간 내)', items:['lc','stt','asb'], prio:true, s:'Parvizi 1998',
+       rule: countRule(['lc','stt','asb'], [{min:3,lr:3.7,t:'3개 모두 양성 → LR+ 3.7 (특이도 74%)'},{max:2,lr:0.04,t:'하나라도 음성 → LR− 0.04'}]) },
+  ddx:['wr-dq'],
+  note:'세 징후 모두 민감도 100% 보고(계산은 97%로 보정). 하나라도 음성이면 골절 가능성이 매우 낮고, 모두 양성이어도 확진력은 제한적이라 영상 확인이 필요합니다.',
+  refs:['parvizi98'] },
+
+{ id:'wr-tfcc', r:'wr', g:'척측(새끼 쪽) 통증', n:'TFCC 손상', en:'Triangular fibrocartilage complex injury',
+  cue:'척측 손목 통증 · 문손잡이 돌리기·짚고 일어나기 시 통증 · 딸깍',
+  tests:[
+    {id:'fov', n:'Ulnar fovea sign', k:'척골 오목 압통', sn:.95, sp:.87, s:'Tay 2007', tip:'Ou Yang 2021: 89/48 — 연구 간 편차 큼', pc:"척골 경상돌기와 척측수근굴근건 사이 오목 압박 시 평소 통증 재현", eb:{p:47, v:"sR_0SdlxjUw"}}
+  ],
+  ddx:['wr-dq'],
+  note:'Fovea sign은 척골 오목부 파열·척삼각인대 손상 기준 수치입니다. 음성이면 두 연구 모두 배제 쪽으로 도움이 되지만(LR− 0.06–0.23), 양성의 확진력은 연구마다 크게 달라(LR+ 1.7–7.3) 양성만으로 확진하지 마세요.',
+  refs:['tay07'] },
+
+/* ─────────────── 목·경추 ─────────────── */
+{ id:'cx-rad', r:'cx', g:'팔 방사통 · 저림', n:'경추 신경근병증', en:'Cervical radiculopathy',
+  cue:'팔로 뻗치는 통증·저림 · 목 움직임에 따라 팔 증상 변화',
+  tests:[
+    {id:'ulta',n:'ULTT A (정중신경)', k:'팔 신경 긴장 검사', sn:.97, sp:.22, s:'Wainner 2003', pc:"다음 중 하나: 증상 재현 · 좌우 팔꿈치 신전 차 >10° · 목 반대쪽 측굴 시 증상 증가(같은 쪽 측굴 시 감소)", eb:{p:60, v:"rir6x6Iiqc4"}},
+    {id:'rot', n:'경추 회전 < 60° (증상 쪽)', k:'관절가동범위', sn:.89, sp:.49, s:'Wainner 2003', pc:"증상 쪽 능동 회전 < 60°"},
+    {id:'spa', n:'Spurling A (측굴 + 압박)', k:'스펄링', sn:.50, sp:.86, s:'Wainner 2003', tip:'전자책 P.95의 단계별 압박(신전·회전 포함)과 다른 방법입니다', pc:"증상 쪽 측굴 + 압박(약 7 kg) 시 증상 재현 — 신전·회전은 넣지 않음"},
+    {id:'dis', n:'Distraction', k:'목 당김 시 증상 감소', sn:.44, sp:.90, s:'Wainner 2003', pc:"누운 자세 목 견인(최대 약 14 kg) 시 증상 감소", eb:{p:97, v:"uLdzgd5snmw"}},
+    {id:'val', n:'Valsalva', k:'발살바', sn:.22, sp:.94, s:'Wainner 2003', pc:"숨 참고 힘줄 때 증상 재현", eb:{p:112, v:"k5o26XwpCt4"}},
+    {id:'sab', n:'Shoulder abduction relief', k:'어깨 벌림 시 증상 감소', sn:.17, sp:.92, s:'Wainner 2003', pc:"아픈 쪽 손을 머리 위에 올리면 증상 감소", eb:{p:99, v:"8_AHkiiPYS8"}}
+  ],
+  cl:{ n:'Wainner 클러스터', items:['ulta','rot','spa','dis'], prio:true, s:'Wainner 2003',
+       rule: countRule(['ulta','rot','spa','dis'], [{min:4,lr:30.3,t:'4개 모두 양성 → LR+ 30.3'},{min:3,lr:6.1,t:'3개 양성 → LR+ 6.1'},{min:2,max:2,lr:0.88,t:'2개 양성 → LR+ 0.88'}]) },
+  ddx:['cx-tos','sh-saps','wr-cts','el-cub','cx-mye'],
+  note:'ULTT A가 음성이면 배제력이 큽니다(LR− 0.12). 클러스터 4개 양성의 LR+ 30.3은 신뢰구간이 넓습니다(1.7–538).',
+  refs:['wainner03'] },
+
+{ id:'cx-tos', r:'cx', g:'팔 방사통 · 저림', n:'흉곽출구 증후군 (TOS)', en:'Thoracic outlet syndrome',
+  cue:'팔을 들고 있으면 저림·무거움 · 팔 전체의 막연한 저림',
+  tests:[
+    {id:'roos', n:'Roos (EAST)', k:'루스 (3분 거상 운동)', sn:.84, sp:.30, s:'Gillard 2001', pc:"팔 90° 외전·외회전으로 3분간 주먹 쥐었다 펴기 — 평소 증상 재현 또는 지속 불가", eb:{p:53, v:"0oGGdcQsBKY"}},
+    {id:'adson',n:'Adson', k:'애드슨', sn:.79, sp:.76, s:'Gillard 2001', pc:"요골 맥박 소실 또는 증상 재현", eb:{p:54, v:"-7346RaEGKU"}}
+  ],
+  ddx:['cx-rad','el-cub','wr-cts'],
+  note:'무증상인에서도 양성이 흔합니다. 여러 유발검사가 함께 양성일수록 의미가 커지며, 확진은 영상·전기진단을 병행합니다.',
+  refs:['gillard01'] },
+
+{ id:'cx-cgh', r:'cx', g:'두통', n:'경추성 두통 (C1–2)', en:'Cervicogenic headache (C1–2)',
+  cue:'한쪽 뒤통수→이마로 번지는 두통 · 목 움직임·자세로 유발',
+  tests:[
+    {id:'frt', n:'Flexion-rotation test', k:'굴곡-회전', sn:.91, sp:.90, s:'Ogince 2007', pc:"목 최대 굴곡 상태 수동 회전 < 32° (단단한 저항)"}
+  ],
+  ddx:['cx-rad'],
+  note:'편두통·무증상군과 비교한 연구 수치입니다. 두통 위험 신호(갑작스러운 극심한 두통, 신경학적 이상)가 있으면 먼저 의뢰하세요.',
+  refs:['ogince07'] },
+
+{ id:'cx-mye', r:'cx', g:'위험 신호', n:'경추 척수병증', en:'Cervical myelopathy',
+  cue:'양손 둔함(단추·젓가락) · 보행 불안정 · 양측 저림', red:true, pre:[.10,.20,.40], ro:.05,
+  tests:[
+    {id:'m1', n:'보행 이상', k:'Gait deviation', co:true, pc:"넓은 보폭·경직·불안정 등 눈에 띄는 보행 이상"},
+    {id:'m2', n:'Hoffmann 양성', k:'호프만', co:true, pc:"중지 끝마디를 튕길 때 엄지·검지 굴곡"},
+    {id:'m3', n:'역요골 반사 (Inverted supinator)', k:'Inverted supinator sign', co:true, pc:"완요골근 힘줄 타진 시 손가락 굴곡"},
+    {id:'m4', n:'Babinski 양성', k:'바빈스키', co:true, pc:"발바닥 바깥쪽을 긁을 때 엄지발가락 신전", eb:{p:130, v:"iV_a2WSbdM8"}},
+    {id:'m5', n:'나이 > 45세', k:'Age', co:true}
+  ],
+  cl:{ n:'Cook 클러스터', items:['m1','m2','m3','m4','m5'], prio:true, s:'Cook 2010',
+       rule: countRule(['m1','m2','m3','m4','m5'], [{min:3,lr:30.9,t:'3개 이상 양성 → LR+ 30.9'},{min:2,lr:3.3,t:'2개 양성 → LR+ 3.3'},{min:1,lr:1.4,t:'1개 양성 → LR+ 1.4'},{max:0,lr:0.18,t:'모두 음성 → LR− 0.18'}]) },
+  ddx:['cx-rad'],
+  note:'배제되지 않으면 도수치료·견인 전에 전문의 의뢰가 우선입니다.',
+  refs:['cook10m'] },
+
+{ id:'cx-ccr', r:'cx', g:'위험 신호', n:'외상 후 경추 영상 필요성', en:'Canadian C-spine rule',
+  cue:'교통사고·낙상 후 목 통증 (의식 명료·활력징후 안정)', red:true, pre:[.01,.02,.05], ro:.005,
+  tests:[
+    {id:'ccr', n:'Canadian C-spine rule', k:'양성 = 영상 필요 판정', sn:.994, sp:.451, s:'Stiell 2003', tip:'의식이 명료(GCS 15)하고 활력징후가 안정된 외상 환자에만 적용', pc:"고위험 요인(65세 이상·위험 기전·사지 저림) 있음, 저위험 요인 없음, 좌우 45° 능동 회전 불가 중 하나라도 해당 → 양성(영상 필요)"}
+  ],
+  ddx:['cx-uci','cx-rad'],
+  note:'규칙 음성이면 임상적으로 중요한 경추 손상 가능성이 매우 낮아 영상 없이 진행할 수 있습니다.',
+  refs:['stiell03'] },
+
+{ id:'cx-uci', r:'cx', g:'위험 신호', n:'상부경추(환축추) 불안정성', en:'Atlantoaxial instability',
+  cue:'류마티스 관절염·다운증후군·외상 후 · 목 굽힐 때 증상', red:true, pre:[.10,.25,.50], ro:.05,
+  tests:[
+    {id:'spt', n:'Sharp-Purser', k:'샤프-퍼서', sn:.69, sp:.96, s:'Uitvlugt 1988', tip:'류마티스 관절염 환자 대상 연구', pc:"C2 극돌기 고정 후 이마를 뒤로 밀 때 머리가 C2에 대해 뒤로 미끄러짐"}
+  ],
+  ddx:['cx-ccr','cx-mye'],
+  note:'양성이면 추가 가동 검사를 중단하고 의뢰하세요. 음성만으로는 배제가 어렵습니다(LR− 0.32).',
+  refs:['uitvlugt88'] },
+
+/* ─────────────── 허리·골반 ─────────────── */
+{ id:'lx-rad', r:'lx', g:'다리 방사통', n:'요추 신경근병증 (디스크 탈출)', en:'Lumbar radiculopathy / disc herniation',
+  cue:'무릎 아래까지 뻗치는 다리 통증·저림 · 기침·재채기 시 악화',
+  tests:[
+    {id:'slr', n:'SLR (뻗은다리 올림)', k:'방사통 재현', sn:.91, sp:.26, s:'Devillé 2000 (메타)', pc:"다리를 올릴 때 무릎 아래로 뻗치는 방사통 재현", eb:{p:133, v:"LdAD9GNv8FI"}},
+    {id:'slump',n:'Slump', k:'슬럼프', sn:.84, sp:.83, s:'Majlesi 2008', pc:"슬럼프 순서 중 다리 방사통 재현 — 햄스트링 당김만은 음성", eb:{p:132, v:"HFGfP84uwEo"}},
+    {id:'cslr',n:'Crossed SLR', k:'반대쪽 다리 올림 시 증상', sn:.29, sp:.88, s:'Devillé 2000 (메타)', pc:"반대쪽 다리를 올릴 때 아픈 쪽 다리로 방사통"}
+  ],
+  ddx:['lx-lss','lx-sij','hp-dgs'],
+  note:'SLR 수치는 수술 환자(유병률 높음) 대상 메타분석이라 1차 의료에서는 민감도가 더 낮고 특이도가 더 높을 수 있습니다. Slump 수치는 환자-대조군 연구.',
+  refs:['deville00','majlesi08'] },
+
+{ id:'lx-lss', r:'lx', g:'걸을 때 다리 증상', n:'요추관 협착증 (신경성 파행)', en:'Lumbar spinal stenosis',
+  cue:'걷거나 서 있으면 다리 저림·무거움 · 앉거나 숙이면 완화 · 60세 이상',
+  tests:[
+    {id:'nc',  n:'신경성 파행', k:'걷기·서기 시 다리 증상, 앉으면 완화', lrp:3.7, lrn:.23, s:'Suri 2010 (JAMA 메타)'},
+    {id:'bend',n:'앞으로 숙이면 호전', k:'병력', lrp:6.4, lrn:.52, s:'Suri 2010'},
+    {id:'bil', n:'양측 엉덩이·다리 통증', k:'병력', lrp:6.3, lrn:.54, s:'Suri 2010'},
+    {id:'sit', n:'앉아 있으면 통증 없음', k:'병력', lrp:7.4, lrn:null, s:'Suri 2010'},
+    {id:'wbg', n:'넓은 기저 보행', k:'Wide-based gait', lrp:13, lrn:null, s:'Suri 2010'},
+    {id:'rom', n:'Romberg 이상', k:'롬버그', lrp:4.2, lrn:null, s:'Suri 2010', pc:"두 발 모으고 눈 감고 설 때 흔들림·균형 상실"}
+  ],
+  ddx:['lx-rad','hp-oa'],
+  note:'LR만 보고된 항목은 음성 결과를 확률에 반영하지 않습니다. 신경성 파행이 없으면 가능성이 크게 낮아집니다(LR− 0.23).',
+  refs:['suri10'] },
+
+{ id:'lx-inst', r:'lx', g:'허리 불안정감', n:'요추 분절 불안정성', en:'Lumbar segmental instability',
+  cue:'자세 바꿀 때 허리가 빠지는/걸리는 느낌 · 반복되는 급성 요통',
+  tests:[
+    {id:'ple', n:'Passive lumbar extension', k:'수동 요추 신전', sn:.842, sp:.904, s:'Kasai 2006', pc:"엎드려 양다리를 약 30 cm 들어 당길 때 강한 요통·빠질 듯한 느낌, 내리면 사라짐"}
+  ],
+  ddx:['lx-rad','lx-sij'],
+  note:'방사선상 불안정성 기준 수치입니다. 음성·양성 모두 판별력이 중간 이상입니다.',
+  refs:['kasai06'] },
+
+{ id:'lx-sij', r:'lx', g:'엉덩이 · 골반 통증', n:'천장관절 통증', en:'Sacroiliac joint pain',
+  cue:'PSIS 주변 한쪽 엉덩이 통증 · L5 아래 · 앉았다 일어설 때 통증',
+  tests:[
+    {id:'tt',  n:'Thigh thrust (P4)', k:'허벅지 밀기', sn:.88, sp:.69, s:'Laslett 2005', pc:"누워 고관절 90° 굴곡에서 대퇴 장축으로 뒤로 밀 때 평소 통증 재현"},
+    {id:'dist',n:'Distraction (Gapping)', k:'벌림', sn:.60, sp:.81, s:'Laslett 2005', pc:"누워 양쪽 ASIS를 뒤·바깥으로 누를 때 평소 통증 재현", eb:{p:113, v:"OUwzaMVgGMk"}},
+    {id:'comp',n:'Compression (Approximation)', k:'접근·압박', sn:.69, sp:.69, s:'Laslett 2005', pc:"옆으로 누워 위쪽 장골능을 아래로 누를 때 평소 통증 재현", eb:{p:114, v:"pWjvrhWMR4w"}},
+    {id:'sac', n:'Sacral thrust', k:'엉치뼈 밀기', sn:.63, sp:.75, s:'Laslett 2005', pc:"엎드려 엉치뼈를 앞쪽으로 누를 때 평소 통증 재현", eb:{p:115, v:"7rxOWC9qoOA"}},
+    {id:'gae', n:"Gaenslen", k:'겐슬렌', sn:.53, sp:.71, s:'Laslett 2005 (우측; 좌측 50/77)', pc:"한쪽 고관절 최대 굴곡·반대쪽 신전 시 평소 통증 재현", eb:{p:118, v:"ED_bYoQk9d4"}}
+  ],
+  cl:{ n:'Laslett 규칙 (4개 중 2개)', items:['tt','dist','comp','sac'], prio:true, s:'Laslett 2005',
+       rule: countRule(['tt','dist','comp','sac'], [{min:2,lr:4.0,t:'2개 이상 양성 → LR+ 4.0'},{max:1,lr:0.16,t:'1개 이하 양성 → LR− 0.16'}]) },
+  ddx:['lx-rad','hp-ia','lx-inst'],
+  note:'먼저 반복 운동검사에서 중심화 현상이 있으면 디스크성 통증을 우선 고려합니다. 권장 순서: 허벅지 밀기 → 벌림 → (1개만 양성이면) 압박 → 엉치뼈 밀기. Gaenslen은 규칙 정확도를 높이지 못해 제외됩니다.',
+  refs:['laslett05'] },
+
+/* ─────────────── 고관절 ─────────────── */
+{ id:'hp-ia', r:'hp', g:'서혜부 통증', n:'관절내 병변 (FAI · 관절와순)', en:'FAI / labral tear',
+  cue:'서혜부 깊은 통증(C-sign) · 깊이 앉기·웅크리기 시 통증 · 걸림',
+  tests:[
+    {id:'fadir',n:'FADIR', k:'굴곡·내전·내회전', sn:.99, sp:.05, s:'Reiman 2015 (메타)', tip:'다른 풀링 세트: 민감도 94%', pc:"굴곡·내전·내회전 시 서혜부(고관절 앞) 통증 재현"}
+  ],
+  ddx:['hp-oa','lx-sij','hp-fx'],
+  note:'배제(선별) 용도로만 쓰입니다. 양성으로 확진할 수 있는 검사는 없으므로 영상 의뢰로 확인하세요.',
+  refs:['reiman15'] },
+
+{ id:'hp-oa', r:'hp', g:'서혜부 통증', n:'고관절 골관절염', en:'Hip osteoarthritis',
+  cue:'50세 이상 서혜부·허벅지 앞 통증 · 내회전 제한 · 양말 신기 어려움',
+  tests:[
+    {id:'o1', n:'쪼그려 앉기 시 악화 (자가 보고)', k:'Sutlive 항목', co:true},
+    {id:'o2', n:'능동 고관절 굴곡 시 외측 통증', k:'Sutlive 항목', co:true},
+    {id:'o3', n:'Scour(+내전) 시 서혜부·외측 통증', k:'Sutlive 항목', co:true},
+    {id:'o4', n:'능동 고관절 신전 시 통증', k:'Sutlive 항목', co:true},
+    {id:'o5', n:'수동 내회전 ≤ 25°', k:'Sutlive 항목', co:true}
+  ],
+  cl:{ n:'Sutlive 클러스터', items:['o1','o2','o3','o4','o5'], prio:true, s:'Sutlive 2008',
+       rule: countRule(['o1','o2','o3','o4','o5'], [{min:4,lr:24.3,t:'4개 이상 양성 → LR+ 24.3'},{min:3,lr:5.2,t:'3개 양성 → LR+ 5.2'},{min:2,lr:2.1,t:'2개 양성 → LR+ 2.1'},{min:1,lr:1.2,t:'1개 양성 → LR+ 1.2'},{max:0,lr:0.27,t:'모두 음성 → LR− 0.27'}]) },
+  ddx:['hp-ia','lx-lss','hp-gtps'],
+  note:'4개 이상 양성의 LR+ 24.3은 신뢰구간이 넓습니다(4.4–142). 확진은 X-ray.',
+  refs:['sutlive08'] },
+
+{ id:'hp-gtps', r:'hp', g:'외측 통증', n:'둔근 건병증 (대전자 통증 증후군)', en:'Gluteal tendinopathy / GTPS',
+  cue:'대전자 부위 통증 · 옆으로 눕기·계단·한발 서기 시 통증',
+  tests:[
+    {id:'gtp', n:'대전자 촉진 압통', k:'Palpation', sn:.80, sp:.467, s:'Grimaldi 2017', pc:"옆으로 누워 대전자 촉진 시 통증 > 2/10"},
+    {id:'sls', n:'한발 서기 30초', k:'Single leg stance', sn:.38, sp:1.00, lrp:12.2, lrn:.62, s:'Grimaldi 2017', pc:"한발 서기 30초 안에 대전자 부위 통증 > 2/10"},
+    {id:'fdr', n:'FADER-R', k:'굴곡·내전·외회전 + 저항 내회전', sn:.44, sp:.933, s:'Grimaldi 2017', pc:"90° 굴곡·내전·외회전 자세에서 저항 내회전 시 대전자 통증 > 2/10"},
+    {id:'adr2',n:'ADD-R', k:'내전 + 저항 외전', sn:.38, sp:.933, s:'Grimaldi 2017', pc:"옆으로 누워 최대 내전 후 저항 외전 시 대전자 통증 > 2/10"},
+    {id:'fab', n:'FABER', k:'패트릭', sn:.42, sp:.80, s:'Grimaldi 2017', pc:"FABER 자세에서 대전자(외측) 통증 > 2/10 — 서혜부 통증이 아님", eb:{p:124, v:"89Qiht82zmg"}}
+  ],
+  ddx:['hp-oa','lx-rad','hp-ia'],
+  note:'압통이 없으면 가능성이 낮아지고(LR− 0.43), 근수축을 이용한 검사(한발 서기·FADER-R·ADD-R) 양성이 확진 쪽으로 강합니다.',
+  refs:['grimaldi17'] },
+
+{ id:'hp-ham', r:'hp', g:'엉덩이 · 좌골 통증', n:'근위 햄스트링 건병증', en:'Proximal hamstring tendinopathy',
+  cue:'좌골결절 부위 통증 · 오래 앉기·달리기 가속 시 통증',
+  tests:[
+    {id:'mbks',n:'Modified bent-knee stretch', k:'변형 무릎 굽힘 신장', sn:.89, sp:.91, s:'Cacchio 2012', pc:"고관절·무릎 최대 굴곡 후 무릎을 빠르게 펼 때 평소 엉덩이 뒤 통증 악화"},
+    {id:'bks', n:'Bent-knee stretch', k:'무릎 굽힘 신장', sn:.84, sp:.87, s:'Cacchio 2012', pc:"고관절·무릎 최대 굴곡 후 무릎을 천천히 펼 때 평소 엉덩이 뒤 통증"},
+    {id:'po',  n:'Puranen-Orava', k:'푸라넨-오라바', sn:.76, sp:.82, s:'Cacchio 2012', pc:"선 자세에서 발을 올리고 햄스트링을 능동 신장할 때 평소 엉덩이 뒤 통증"}
+  ],
+  ddx:['hp-dgs','lx-rad'],
+  note:'운동선수 대상 연구입니다. 세 검사 중 변형 무릎 굽힘 신장 검사의 정확도가 가장 높습니다.',
+  refs:['cacchio12'] },
+
+{ id:'hp-dgs', r:'hp', g:'엉덩이 · 좌골 통증', n:'심부 둔부 증후군 (좌골신경 포착)', en:'Deep gluteal syndrome',
+  cue:'엉덩이 깊은 통증 + 다리 뒤로 방사 · 30분 이상 앉기 어려움',
+  tests:[
+    {id:'apt', n:'Active piriformis test', k:'능동 이상근 검사', sn:.78, sp:.80, s:'Martin 2014', pc:"옆으로 누워 저항 외전·외회전 시 이상근·좌골 절흔 부위 통증"},
+    {id:'spst',n:'Seated piriformis stretch', k:'앉은 이상근 신장', sn:.52, sp:.90, s:'Martin 2014', pc:"앉아 무릎 편 채 고관절 내전·내회전 시 평소 엉덩이 통증 (다리 저림 동반 가능)"}
+  ],
+  cl:{ n:'Martin 병합', items:['apt','spst'], prio:true, s:'Martin 2014',
+       rule: countRule(['apt','spst'], [{min:1,lr:4.57,t:'하나 이상 양성 → LR+ 4.57'},{max:0,lr:0.11,t:'둘 다 음성 → LR− 0.11 (민감도 91%·특이도 80%로 계산)'}]) },
+  ddx:['lx-rad','hp-ham'],
+  note:'요추 신경근병증을 먼저 배제한 뒤 적용하세요. 33명 소규모 연구입니다.',
+  refs:['martin14'] },
+
+{ id:'hp-fx', r:'hp', g:'외상 · 위험 신호', n:'대퇴 경부·골반 골절 선별', en:'Hip fracture screening',
+  cue:'고령 낙상 후 서혜부 통증 · 체중 지지 곤란 / 달리기 선수의 서혜부 통증', red:true, pre:[.10,.25,.50], ro:.02,
+  tests:[
+    {id:'ppp', n:'Patellar-pubic percussion', k:'슬개골-치골 타진 청진', sn:.95, sp:.86, s:'Reiman 2013 (메타)', pc:"슬개골 타진음이 치골결합 청진에서 건측보다 약함"}
+  ],
+  ddx:['hp-ia','hp-oa'],
+  note:'음성이면 골절 가능성이 크게 낮아지지만, 위험 요인이 뚜렷하면 영상 확인을 권합니다.',
+  refs:['reiman13'] },
+
+/* ─────────────── 무릎 ─────────────── */
+{ id:'kn-acl', r:'kn', g:'외상 후 불안정', n:'전방십자인대(ACL) 파열', en:'ACL tear',
+  cue:'착지·방향 전환 중 뚝 소리 · 수 시간 내 부종 · 무릎이 빠지는 느낌',
+  tests:[
+    {id:'lach',n:'Lachman', k:'라크만', sn:.81, sp:.85, s:'Sokal 2022 (메타)', pc:"20–30° 굴곡에서 전방 이동 증가 또는 끝느낌 소실 (반대쪽 대비)", eb:{p:75, v:"JFkbKNNa7xQ"}},
+    {id:'lev', n:'Lever sign', k:'레버 징후', sn:.83, sp:.91, s:'Sokal 2022 (메타)', pc:"종아리 아래 주먹을 받치고 대퇴를 누를 때 뒤꿈치가 들리지 않음"},
+    {id:'adt', n:'Anterior drawer', k:'전방 끌림', sn:.83, sp:.85, s:'Sokal 2022 (메타)', pc:"고관절 45°·무릎 90°에서 앞으로 당길 때 전방 이동 증가 (반대쪽 대비)", eb:{p:73, v:"IdnBKv38EEQ"}},
+    {id:'piv', n:'Pivot shift', k:'축이동', sn:.55, sp:.94, s:'Sokal 2022 (메타)', pc:"신전→굴곡 중 아탈구된 외측 경골이 덜컥·미끄러지며 정복됨", eb:{p:69, v:"qqy5IfkEvfw"}}
+  ],
+  ddx:['kn-men','kn-mcl','kn-pi','kn-fx'],
+  note:'마취 없이 시행한 연구만 모은 최신 메타분석 값입니다. 이전 메타분석(Benjaminse 2006)은 Lachman 85/94, Pivot shift 24/98, 만성기 전방 끌림 92/91로 보고했습니다.',
+  refs:['sokal22','benjaminse06'] },
+
+{ id:'kn-pcl', r:'kn', g:'외상 후 불안정', n:'후방십자인대(PCL) 파열', en:'PCL tear',
+  cue:'정강이 앞 충격(계기판 손상·무릎 꿇고 넘어짐) · 후방 처짐',
+  tests:[
+    {id:'pdt', n:'Posterior drawer', k:'후방 끌림', sn:.90, sp:.99, s:'Rubinstein 1994', tip:'원 연구 초록의 90/99는 PCL 임상 검사 전체의 정확도 — 이 검사 단독 민감도는 다른 연구에서 더 낮게 보고됨', pc:"90° 굴곡에서 뒤로 밀 때 내측 경골 고원의 앞쪽 단차가 줄거나 사라짐", eb:{p:73, v:"wDIGll5wzZs"}},
+    {id:'sag', n:'Posterior sag', k:'중력 후방 처짐', sn:.79, sp:1.00, s:'Rubinstein 1994', pc:"무릎 90° 굴곡에서 경골이 뒤로 처져 경골 조면 윤곽이 사라짐 (반대쪽 대비)", eb:{p:72, v:"BVWD2V0RwRA"}},
+    {id:'qat', n:'Quadriceps active', k:'대퇴사두근 능동', sn:.54, sp:.97, s:'Rubinstein 1994', pc:"무릎 90°에서 대퇴사두를 살짝 수축하면 처진 경골이 앞으로 이동"}
+  ],
+  ddx:['kn-acl','kn-fx'],
+  note:'단차 촉진을 포함한 후방 끌림 검사가 가장 정확한 검사로 보고됐습니다(Rubinstein 1994). 특이도는 연구 간 일관되게 높지만 민감도는 연구마다 낮게 나오기도 해(체계적 고찰 Kopkow 2013), 음성만으로 배제하지 마세요.',
+  refs:['rubinstein94','kopkow13'] },
+
+{ id:'kn-mcl', r:'kn', g:'외상 후 불안정', n:'내측측부인대(MCL) 손상', en:'MCL lesion',
+  cue:'무릎 바깥쪽 충격·외반 비틀림 뒤 내측 통증',
+  tests:[
+    {id:'mh', n:'외력 또는 회전 외상 기전', k:'병력', co:true},
+    {id:'mp', n:'외반 스트레스 30° — 통증', k:'Valgus stress (pain)', co:true, eb:{p:82, v:"GSFbttpxCuQ"}},
+    {id:'ml', n:'외반 스트레스 30° — 이완', k:'Valgus stress (laxity)', co:true, eb:{p:82, v:"GSFbttpxCuQ"}}
+  ],
+  cl:{ n:'Kastelein 조합', items:['mh','mp','ml'], prio:true, s:'Kastelein 2008',
+       rule: function(r){
+         const A=r.mh, B=r.mp, C=r.ml;
+         if(A==='-') return {done:true, lr:0.3, t:'외상 기전 없음 → LR− 0.3'};
+         if(A!=='+') return {done:false, lr:null, t:'외상 기전 먼저 확인'};
+         if(B==='+' && C==='+') return {done:true, lr:6.4, t:'기전 + 통증 + 이완 → LR+ 6.4'};
+         if(B==='+') return {done:C!==undefined, lr:4.8, t:'기전 + 외반 통증 → LR+ 4.8'+(C===undefined?' (이완 미확인)':'')};
+         if(C==='+') return {done:B!==undefined, lr:2.9, t:'기전 + 외반 이완 → LR+ 2.9'+(B===undefined?' (통증 미확인)':'')};
+         if(B==='-' && C==='-') return {done:true, lr:0.4, t:'기전만 양성, 외반 검사 음성 → LR 0.4'};
+         return {done:false, lr:2.0, t:'외상 기전 양성 → LR+ 2.0 (외반 검사 대기)'};
+       } },
+  ddx:['kn-acl','kn-men'],
+  note:'1차 의료(일반의) 연구 결과입니다. 외반 검사는 무릎 30° 굴곡에서 시행합니다.',
+  refs:['kastelein08'] },
+
+{ id:'kn-pi', r:'kn', g:'외상 후 불안정', n:'슬개골 불안정성', en:'Lateral patellar instability',
+  cue:'무릎뼈가 바깥으로 빠진 적 · 방향 전환 시 불안',
+  tests:[
+    {id:'mpat',n:'Moving patellar apprehension', k:'움직이는 슬개골 불안 검사', sn:1.00, sp:.884, s:'Ahmad 2009', tip:'전자책 P.67의 정적 검사와 다른 방법입니다 — 수치는 움직이는 검사 기준', pc:"슬개골을 외측으로 민 채 0→90→0° 굽혔다 펼 때 불안감, 내측으로 민 채로는 불안감 없음"}
+  ],
+  ddx:['kn-acl','kn-pfp'],
+  note:'51명, 마취하 탈구 가능성 기준 연구입니다(민감도 100% → 계산 97%).',
+  refs:['ahmad09'] },
+
+{ id:'kn-men', r:'kn', g:'걸림 · 관절선 통증', n:'반월상 연골 손상', en:'Meniscal tear',
+  cue:'비틀림 손상 · 관절선 통증 · 걸림/잠김 · 쪼그려 앉기 통증',
+  tests:[
+    {id:'lw1', n:'걸림·잠김 병력', k:'Lowery 항목', co:true},
+    {id:'jlt', n:'Joint line tenderness', k:'관절선 압통', sn:.83, sp:.83, s:'Smith 2015 (메타)', pc:"관절선 촉진 시 통증", eb:{p:81, v:"XBle4px05ck"}},
+    {id:'mcm', n:'McMurray', k:'맥머레이 (통증 또는 딸깍)', sn:.61, sp:.84, s:'Smith 2015 (메타)', pc:"굴곡에서 회전하며 펼 때 관절선 통증 또는 딸깍", eb:{p:76, v:"lwDFPAyGGgI"}},
+    {id:'lw2', n:'강제 과신전 시 통증', k:'Lowery 항목 (변형 bounce home)', co:true, eb:{p:79, v:"P570wBELisU"}},
+    {id:'lw3', n:'최대 수동 굴곡 시 통증', k:'Lowery 항목', co:true},
+    {id:'thes',n:'Thessaly (20°)', k:'테살리', sn:.64, sp:.53, s:'Goossens 2015', tip:'메타분석(Smith 2015)은 민감도 75%로 더 높게 보고 — 초기 연구의 과대평가 영향', pc:"20° 굴곡 한발 서기로 몸을 돌릴 때 관절선 통증 또는 걸림·잠김 느낌", eb:{p:78, v:"ebraZ4jM36A"}},
+    {id:'ege', n:"Ege", k:'에게 (내측 기준)', sn:.67, sp:.81, s:'Akseki 2004', tip:'외측 반월판 64/90', pc:"발을 최대 외회전해 쪼그려 앉았다 일어날 때 내측 관절선 통증·딸깍 (외측은 내회전)", eb:{p:80, v:"OUwzCKkGQjw"}},
+    {id:'apl', n:'Apley', k:'아플레이', sn:.607, sp:.702, s:'Hegedus 2007 (메타)', pc:"엎드려 90° 굴곡에서 발꿈치로 압박하며 회전 시 관절선 통증", eb:{p:77, v:"6Z_9lfX_Pc8"}}
+  ],
+  cl:{ n:'Lowery 복합 점수', items:['lw1','jlt','mcm','lw2','lw3'], prio:true, s:'Lowery 2006',
+       rule: countRule(['lw1','jlt','mcm','lw2','lw3'], [{min:5,lr:11.45,t:'5개 모두 양성 → LR+ 11.45'},{min:4,lr:4.29,t:'4개 양성 → LR+ 4.29'},{min:3,lr:3.15,t:'3개 양성 → LR+ 3.15'},{max:2,lr:0.77,t:'2개 이하 → LR− 0.77 (민감도 31%·특이도 90%로 계산)'}]) },
+  ddx:['kn-acl','kn-pfp','kn-oa'],
+  note:'단일 검사의 진단력은 약합니다. Thessaly는 관절경 예정 환자 593명 연구(Goossens 2015) 값을 썼습니다(LR+ 1.4). 걸림 병력·관절선 압통·McMurray 등을 Lowery 점수로 묶어 판단하고, 확진은 MRI.',
+  refs:['smith15','hegedus07','akseki04','lowery06','goossens15'] },
+
+{ id:'kn-pfp', r:'kn', g:'앞무릎 통증', n:'슬개대퇴 통증', en:'Patellofemoral pain',
+  cue:'무릎뼈 주변 통증 · 쪼그려 앉기·계단·오래 앉기 시 통증',
+  tests:[
+    {id:'sq',  n:'쪼그려 앉기 시 통증', k:'Squatting', sn:.91, sp:.50, s:'Nunes 2013 / Cook 2010', pc:"쪼그려 앉을 때 슬개골 주변 통증"},
+    {id:'tilt',n:'Patellar tilt', k:'슬개골 기울기', sn:.43, sp:.92, s:'Nunes 2013 (메타)', pc:"무릎 편 채 슬개골 외측 모서리를 수평 이상 들어 올리지 못함"},
+    {id:'vmc', n:'VM coordination', k:'내측광근 협응', sn:.17, sp:.93, s:'Nunes 2013 (메타)', pc:"무릎 아래 주먹을 두고 천천히 끝까지 펼 때 매끄럽게 펴지 못함 (누르거나 들뜸·중간 멈춤)", eb:{p:91, v:"T2Dwz77TC28"}},
+    {id:'rq',  n:'저항 대퇴사두근 수축 시 통증', k:'Cook 항목', co:true},
+    {id:'pp',  n:'슬개골 주변 촉진 통증', k:'Cook 항목', co:true},
+    {id:'clk', n:"Clarke", k:'클라크 (연골연화증 기준)', sn:.39, sp:.67, s:'Doberstein 2008', pc:"슬개골 위쪽을 아래로 누른 채 대퇴사두 수축 시 슬개골 뒤 통증", eb:{p:85, v:"pRqnODPqxFs"}}
+  ],
+  cl:{ n:'Cook 조합 (3개 중 2개)', items:['sq','rq','pp'], prio:false, s:'Cook 2010',
+       rule: countRule(['sq','rq','pp'], [{min:2,lr:4.0,t:'2개 이상 양성 → LR+ 4.0'}]) },
+  ddx:['kn-pi','kn-men','kn-oa'],
+  note:'JOSPT 진료지침(2019): 쪼그려 앉기 시 슬개골 주변 통증 재현이 가장 민감한 진단 기준입니다. Clarke 검사는 위양성이 많아 권장되지 않습니다.',
+  refs:['nunes13','cook10p','doberstein08'] },
+
+{ id:'kn-oa', r:'kn', g:'만성 · 퇴행', n:'무릎 골관절염 (ACR 임상 기준)', en:'Knee osteoarthritis (ACR clinical)',
+  cue:'무릎 통증 + 50세 이상 · 짧은 아침 강직 · 마찰음 · 관절 비대',
+  tests:[
+    {id:'a1', n:'나이 > 50세', k:'ACR 항목', co:true},
+    {id:'a2', n:'아침 강직 < 30분', k:'ACR 항목', co:true},
+    {id:'a3', n:'능동 운동 시 마찰음', k:'ACR 항목', co:true},
+    {id:'a4', n:'뼈 가장자리 압통', k:'ACR 항목', co:true},
+    {id:'a5', n:'뼈 비대', k:'ACR 항목', co:true},
+    {id:'a6', n:'촉지되는 열감 없음', k:'ACR 항목', co:true}
+  ],
+  cl:{ n:'ACR 임상 기준 (6개 중 3개)', items:['a1','a2','a3','a4','a5','a6'], prio:true, s:'Altman 1986',
+       rule: countRule(['a1','a2','a3','a4','a5','a6'], [{min:3,lr:3.06,t:'3개 이상 → 기준 충족, LR+ 3.1 (민감도 95%·특이도 69%)'},{max:2,lr:0.07,t:'2개 이하 → LR− 0.07'}]) },
+  ddx:['kn-men','kn-pfp'],
+  note:'분류 기준이며 감별 진단(염증성 관절염 등)을 대신하지 않습니다.',
+  refs:['altman86'] },
+
+{ id:'kn-fx', r:'kn', g:'외상 후 골절 선별', n:'무릎 골절 선별 (Ottawa)', en:'Ottawa knee rule',
+  cue:'급성 외상 후 무릎 통증', red:true, pre:[.03,.07,.15], ro:.02,
+  tests:[
+    {id:'okr', n:'Ottawa knee rule', k:'하나라도 해당 = 양성', sn:.985, sp:.486, s:'Bachmann 2004 (메타)', pc:"55세 이상 · 비골두 압통 · 슬개골 단독 압통 · 90° 굴곡 불가 · 체중 지지 4걸음 불가 중 하나라도 해당"}
+  ],
+  ddx:['kn-acl','kn-pcl'],
+  note:'음성이면 골절 확률이 약 1.5% 미만으로 영상 없이 진행할 수 있는 수준입니다.',
+  refs:['bachmann04'] },
+
+/* ─────────────── 발목·발 ─────────────── */
+{ id:'an-fx', r:'an', g:'외상 후', n:'발목·중족부 골절 선별 (Ottawa)', en:'Ottawa ankle rules',
+  cue:'접질림 등 급성 발목 외상 후 통증', red:true, pre:[.05,.15,.30], ro:.02,
+  tests:[
+    {id:'oar', n:'Ottawa ankle rules', k:'하나라도 해당 = 양성', sn:.976, sp:.315, lrn:.08, s:'Bachmann 2003 (메타)', pc:"복사뼈 후연·끝 6 cm 압통, 주상골·5번 중족골 기저부 압통, 체중 지지 4걸음 불가 중 하나라도 해당"}
+  ],
+  ddx:['an-lat','an-syn','an-atr'],
+  note:'음성이면 골절 가능성이 매우 낮아 X-ray가 필요 없는 수준입니다(LR− 0.08).',
+  refs:['bachmann03'] },
+
+{ id:'an-lat', r:'an', g:'외상 후', n:'외측 인대(ATFL) 파열', en:'Lateral ankle ligament rupture',
+  cue:'안쪽으로 접질림 · 외측 복사뼈 앞 통증·부종·멍',
+  tests:[
+    {id:'adta',n:'Anterior drawer (발목)', k:'전방 전위', sn:.86, sp:.74, s:'van Dijk 1996', pc:"발목 약간 저측굴곡에서 뒤꿈치를 앞으로 당길 때 전방 이동 증가 (반대쪽 대비·앞외측 함몰)"}
+  ],
+  ddx:['an-fx','an-syn'],
+  note:'손상 직후(48시간 내)보다 4–5일 뒤 재평가가 정확합니다. 지연 이학적 검사(압통 + 혈종 + 전방 전위 종합)는 민감도 96%·특이도 84%.',
+  refs:['vandijk96'] },
+
+{ id:'an-syn', r:'an', g:'외상 후', n:'원위 경비인대결합 손상 (고위 발목 염좌)', en:'Syndesmosis injury',
+  cue:'발이 바깥으로 돌며 다침 · 복사뼈 위 앞쪽 통증 · 한발 뛰기 불가',
+  tests:[
+    {id:'aitfl',n:'전방 경비인대 압통', k:'AITFL tenderness', sn:.92, sp:.29, lrn:.28, s:'Sman 2015', pc:"원위 경비인대결합(AITFL) 촉진 시 압통"},
+    {id:'hop', n:'한발 뛰기 불가', k:'Single-leg hop', sn:.89, sp:.30, lrn:.37, s:'Sman 2015', pc:"다친 다리로 한발 뛰기를 못함"},
+    {id:'dfer',n:'배측굴곡-외회전 스트레스', k:'DF-ER stress', sn:.71, sp:.63, lrn:.46, s:'Sman 2015', pc:"배측굴곡 + 외회전 시 경비인대결합 부위 통증"},
+    {id:'poop',n:'손상 정도에 비해 과도한 통증', k:'병력', sn:.64, sp:.79, lrp:3.05, s:'Sman 2015', pc:"외상 정도에 비해 통증이 과도함 (검사자 판단)"},
+    {id:'sqz', n:'Squeeze', k:'압착 검사', sn:.26, sp:.88, lrp:2.15, s:'Sman 2015', pc:"종아리 중간에서 경골·비골을 압박하면 발목 위 경비인대결합 부위 통증"}
+  ],
+  ddx:['an-lat','an-fx'],
+  note:'민감한 항목(압통·뛰기 불가·DF-ER)과 특이적 항목(과도한 통증·Squeeze)을 조합해 판단합니다. 의심되면 MRI.',
+  refs:['sman15'] },
+
+{ id:'an-atr', r:'an', g:'외상 후', n:'아킬레스건 파열', en:'Achilles tendon rupture',
+  cue:'종아리 뒤를 맞은 듯한 느낌 · 까치발 불가',
+  tests:[
+    {id:'cst', n:'Calf squeeze (Thompson)', k:'종아리 쥐어짜기', sn:.96, sp:.93, lrp:13.71, lrn:.04, s:'Reiman 2014 (메타)', pc:"엎드려 종아리를 쥘 때 발이 발바닥쪽으로 굽혀지지 않음 (또는 뚜렷이 줄어듦)"},
+    {id:'mat', n:'Matles', k:'매틀스', sn:.88, sp:.85, lrp:6.29, lrn:.14, s:'Reiman 2014 (메타)', pc:"엎드려 무릎을 90° 굽힐 때 다친 쪽 발이 중립·배측굴곡으로 처짐"},
+    {id:'gap', n:'Palpable gap', k:'촉지 함몰', sn:.73, sp:.89, lrp:6.64, lrn:.30, s:'Reiman 2014 (메타)', pc:"건을 따라 만질 때 함몰(틈)이 만져짐"}
+  ],
+  ddx:['an-at'],
+  note:'양성 쪽이면 조기 정형외과 의뢰가 필요합니다.',
+  refs:['reiman14'] },
+
+{ id:'an-at', r:'an', g:'아킬레스 · 발뒤꿈치 통증', n:'아킬레스 건병증', en:'Achilles tendinopathy',
+  cue:'아침 첫걸음 아킬레스 통증·뻣뻣함 · 부착부 2–6 cm 위 통증',
+  tests:[
+    {id:'atp', n:'건 촉진 압통', k:'Palpation', sn:.64, sp:.81, lrp:3.15, lrn:.48, s:'Reiman 2014 (메타)', pc:"아킬레스건(부착부 2–6 cm 위) 촉진 시 압통"},
+    {id:'rlh', n:'Royal London Hospital', k:'로열 런던 병원 검사', sn:.54, sp:.86, lrp:3.84, lrn:.54, s:'Reiman 2014 (메타)', pc:"압통점의 압통이 최대 배측굴곡에서 뚜렷이 줄거나 사라짐"},
+    {id:'arc', n:'Arc sign', k:'호 징후', sn:.42, sp:.88, lrp:3.24, lrn:.68, s:'Reiman 2014 (메타)', pc:"발목을 움직일 때 건의 부은 부위가 함께 움직임"}
+  ],
+  ddx:['an-atr','an-pf'],
+  note:'세 검사 모두 양성 쪽 판별력은 중간, 음성 쪽 배제력은 약합니다. 초음파와 결합하세요.',
+  refs:['reiman14'] },
+
+{ id:'an-pf', r:'an', g:'아킬레스 · 발뒤꿈치 통증', n:'족저근막염', en:'Plantar fasciitis',
+  cue:'아침 첫발 발뒤꿈치 안쪽 통증 · 오래 앉았다 일어설 때 통증',
+  tests:[
+    {id:'wl',  n:'Windlass (체중 부하)', k:'윈드라스', sn:.318, sp:1.00, s:'De Garceau 2003', tip:'비체중 부하 시 민감도 13.6%', pc:"선 자세에서 엄지발가락을 수동 신전할 때 평소 발뒤꿈치 통증 재현"}
+  ],
+  ddx:['an-at'],
+  note:'양성이면 확진 쪽으로 강하지만(특이도 100% → 계산 97%) 음성으로 배제는 불가합니다. 진단은 병력(첫발 통증) + 내측 종골결절 압통이 중심입니다.',
+  refs:['degarceau03'] },
+
+{ id:'an-mn', r:'an', g:'앞발 통증', n:'지간 신경종 (Morton)', en:"Morton's neuroma",
+  cue:'3·4번째 발가락 사이 화끈거림·저림 · 좁은 신발에서 악화',
+  tests:[
+    {id:'tif', n:'Thumb-index finger squeeze', k:'엄지-검지 지간 압박', sn:.96, sp:1.00, lrp:null, lrn:.04, s:'Mahadevan (Pitcher 2024 인용)', tip:'특이도 100%는 신경종이 아닌 1명에서 계산된 값 — 양성 결과는 확률에 반영하지 않음', pc:"엄지 바닥·검지로 해당 지간을 위아래로 압박할 때 압통 (옆으로 쥐어짜지 않음)"},
+    {id:'mul', n:"Mulder's click", k:'멀더 징후', sn:.29, sp:.87, s:'Dando (Pitcher 2024 인용)', tip:'연구 간 편차 큼 (다른 연구 64/100, 94/17)', pc:"중족골두를 옆에서 쥐어짤 때 딸깍이 만져짐 (통증 동반 가능)"}
+  ],
+  ddx:['an-pf'],
+  note:'엄지-검지 압박 검사 음성이면 배제력이 큽니다(LR− 0.04). 모두 소규모 초음파 기준 연구입니다.',
+  refs:['pitcher24'] }
+];
+
+</script>
+<script>
+'use strict';
+
+/* ═══════════════ 계산 ═══════════════ */
+const CAP = 0.97;              /* 100%로 보고된 값은 97%로 보정 */
+const PRE_LABELS = ['낮음','중간','높음'];
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const CAT = {};
+const REG = {};
+REGIONS.forEach(r => { REG[r.id] = r; });
+CATS.forEach(c => {
+  CAT[c.id] = c;
+  c.pre = c.pre || [.25,.50,.75];
+  c.ro  = c.ro  != null ? c.ro : .10;
+  c.ri  = c.ri  != null ? c.ri : .90;
+  c.T = {};
+  c.tests.forEach(t => { c.T[t.id] = t; });
+});
+
+function eff(v){ return v >= 0.995 ? CAP : v; }
+function LRp(t){
+  if(t.co || t.nolr) return null;
+  if('lrp' in t) return t.lrp;
+  if(t.sn == null || t.sp == null) return null;
+  return eff(t.sn) / (1 - eff(t.sp));
+}
+function LRn(t){
+  if(t.co || t.nolr) return null;
+  if('lrn' in t) return t.lrn;
+  if(t.sn == null || t.sp == null) return null;
+  return (1 - eff(t.sn)) / eff(t.sp);
+}
+function role(t){
+  if(t.co) return 'co';
+  if(t.nolr) return 'na';
+  const p = LRp(t), n = LRn(t);
+  const o = n != null && n <= 0.3, i = p != null && p >= 5;
+  if(o && i) return 'both';
+  if(o) return 'out';
+  if(i) return 'in';
+  if((p != null && p >= 2) || (n != null && n <= 0.5)) return 'aux';
+  return 'weak';
+}
+const ROLE_TXT = {both:'배제·확진', out:'배제용 · SnNout', in:'확진용 · SpPin', aux:'보조', weak:'판별력 약함', na:'근거 부족 · 계산 제외', co:'클러스터 항목'};
+
+/* 양성 기준 · 전자책 영상 (v3) */
+const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
+function ytURL(v){ return 'https://www.youtube.com/watch?v=' + encodeURIComponent(v); }
+function ebLink(t, big){
+  if(!t.eb) return '';
+  const pg = 'P.' + t.eb.p;
+  if(!t.eb.v) return '<span class="vid off' + (big ? ' big' : '') + '" title="전자책 ' + t.eb.p + '쪽">전자책 ' + pg + '</span>';
+  return '<a class="vid' + (big ? ' big' : '') + '" href="' + ytURL(t.eb.v) + '" target="_blank" rel="noopener noreferrer" title="전자책 ' + t.eb.p + '쪽 검사 영상 (유튜브 · 인터넷 필요)">' +
+    PLAY + '<span>' + (big ? '방법 영상' : '영상') + '</span><small>' + (big ? '전자책 ' : '') + pg + '</small></a>';
+}
+function pcLine(t, big){
+  if(!t.pc) return '';
+  return '<div class="pc' + (big ? ' big' : '') + '"><span class="pc-tag">양성 기준</span><span class="pc-txt">' + esc(t.pc) + '</span></div>';
+}
+
+function fmtLR(v){
+  if(v == null) return '—';
+  if(v >= 100) return Math.round(v).toString();
+  if(v >= 10) return v.toFixed(1).replace(/\.0$/,'');
+  if(v >= 1) return v.toFixed(1);
+  return v.toFixed(2);
+}
+function pct(p){
+  if(p < 0.01) return (p*100 < 0.1 ? '<0.1' : (p*100).toFixed(1)) + '%';
+  if(p > 0.99) return '>99%';
+  return Math.round(p*100) + '%';
+}
+function pctRaw(v){ return v == null ? '—' : Math.round(v*100) + '%'; }
+
+/* ═══════════════ 세션 ═══════════════ */
+const S = {};
+function sess(id){ return S[id] || (S[id] = {pre:1, res:{}, seq:[]}); }
+
+function evaluate(cat){
+  const st = sess(cat.id);
+  const p0 = cat.pre[st.pre];
+  let odds = p0 / (1 - p0);
+  const steps = [];
+  let cl = null, clLR = null;
+  if(cat.cl){
+    cl = cat.cl.rule(st.res);
+    if(cl.lr != null) clLR = cl.lr;
+  }
+  const inCl = id => !!(cat.cl && cat.cl.items.indexOf(id) >= 0);
+  st.seq.forEach(id => {
+    const t = cat.T[id], r = st.res[id];
+    if(!t || !r) return;
+    if(inCl(id) && clLR != null){ steps.push({id, r, lr:null, how:'cl'}); return; }
+    if(t.co){ steps.push({id, r, lr:null, how:'co'}); return; }
+    if(t.nolr){ steps.push({id, r, lr:null, how:'na'}); return; }
+    const lr = r === '+' ? LRp(t) : LRn(t);
+    if(lr == null){ steps.push({id, r, lr:null, how:'nolr'}); return; }
+    odds *= lr;
+    steps.push({id, r, lr, how:'ind'});
+  });
+  if(clLR != null) odds *= clLR;
+  let p = odds / (1 + odds);
+  p = Math.min(Math.max(p, 0.0005), 0.9995);
+  const applied = steps.filter(s => s.how === 'ind').length + (clLR != null ? 1 : 0);
+  return {p0, p, steps, cl, clLR, n: st.seq.length, applied};
+}
+
+const ZONE = {
+  none:   {lab:'검사 전',     cls:'z-none', msg:'문진으로 사전확률을 고른 뒤, 아래 추천 검사부터 시행하세요.'},
+  pending:{lab:'판정 대기',   cls:'z-mid',  msg:'클러스터 항목을 더 확인하면 확률이 계산됩니다.'},
+  out:    {lab:'배제 가능',   cls:'z-out',  msg:'이 진단의 가능성은 낮습니다. 아래 감별 진단으로 넘어가세요.'},
+  low:    {lab:'가능성 낮음', cls:'z-low',  msg:'배제 기준까지 조금 남았습니다. 배제력 있는(LR− 낮은) 검사를 더 하거나 다른 감별로 넘어가세요.'},
+  mid:    {lab:'불확실',      cls:'z-mid',  msg:'아직 결론을 내리기 어렵습니다. 추가 검사가 필요합니다.'},
+  high:   {lab:'가능성 높음', cls:'z-high', msg:'확진용(특이도 높은) 검사로 확인하세요.'},
+  in:     {lab:'강하게 시사', cls:'z-in',   msg:'추가 검사보다 치료 계획·의뢰를 판단할 단계입니다. 다른 소견과 함께 종합하세요.'},
+  noinfo: {lab:'계산 없음',   cls:'z-mid',  msg:'기록한 결과에는 확률에 반영할 근거(우도비)가 없습니다. 근거가 있는 다른 검사로 판단하세요.'},
+  redout: {lab:'위험 신호 배제', cls:'z-out', msg:'위험 신호 가능성이 매우 낮습니다. 영상검사 없이 진행할 수 있는 수준입니다.'},
+  red:    {lab:'배제 안 됨',  cls:'z-in',   msg:'위험 신호를 배제하지 못했습니다 → 영상검사 또는 전문의 의뢰를 권합니다.'}
+};
+function zoneOf(cat, ev){
+  if(!ev.n) return 'none';
+  if(!ev.applied) return (ev.cl && !ev.cl.done) ? 'pending' : 'noinfo';
+  const p = ev.p;
+  if(p <= cat.ro) return cat.red ? 'redout' : 'out';
+  if(cat.red) return 'red';
+  if(p < 0.30) return 'low';
+  if(p < 0.70) return 'mid';
+  if(p < cat.ri) return 'high';
+  return 'in';
+}
+
+function nextTest(cat, ev){
+  const st = sess(cat.id);
+  const clDone = !!(ev.cl && ev.cl.done);
+  const inCl = id => !!(cat.cl && cat.cl.items.indexOf(id) >= 0);
+  const rem = cat.tests.filter(t => !st.res[t.id] && !(clDone && inCl(t.id)));
+  if(!rem.length) return null;
+  const z = zoneOf(cat, ev);
+  const stop = ['out','redout','in'].indexOf(z) >= 0;
+  let pick = null, why = '';
+  if(!st.seq.length){
+    pick = rem[0];
+    why = (cat.cl && cat.cl.prio && inCl(pick.id)) ? cat.cl.n + ' 항목부터 시작합니다.' : '이 증상에서 먼저 권장되는 검사입니다.';
+  }else if(cat.cl && cat.cl.prio && ev.cl && !ev.cl.done){
+    pick = rem.find(t => inCl(t.id)) || null;
+    if(pick) why = cat.cl.n + ' 판정을 위한 다음 항목입니다.';
+  }
+  if(!pick){
+    const withLR = rem.filter(t => !t.co && !t.nolr && (LRp(t) != null || LRn(t) != null));
+    if(withLR.length){
+      if(ev.p < 0.5){
+        let best = null, bv = Infinity;
+        withLR.forEach(t => { const v = LRn(t); if(v != null && v < bv){ bv = v; best = t; } });
+        if(best && bv < 0.8){ pick = best; why = '가능성이 낮은 쪽 → 배제력이 가장 큰 검사 (LR− ' + fmtLR(bv) + ')'; }
+      }
+      if(!pick){
+        let best = null, bv = -1;
+        withLR.forEach(t => { const v = LRp(t); if(v != null && v > bv){ bv = v; best = t; } });
+        if(best){ pick = best; why = (ev.p >= 0.5 ? '가능성이 높은 쪽 → 확진력이 가장 큰 검사' : '남은 검사 중 확진력이 가장 큰 검사') + ' (LR+ ' + fmtLR(bv) + ')'; }
+      }
+    }
+  }
+  if(!pick){ pick = rem[0]; why = pick.co ? '남은 클러스터 항목입니다.' : '남은 검사입니다.'; }
+  return {t:pick, why, stop, zone:z};
+}
+
+/* 이 검사를 양성/음성으로 기록하면 확률이 어떻게 바뀌는지 미리 계산 */
+function preview(cat, tid){
+  const st = sess(cat.id);
+  const saveRes = Object.assign({}, st.res), saveSeq = st.seq.slice();
+  const out = {};
+  ['+','-'].forEach(r => {
+    st.res = Object.assign({}, saveRes);
+    st.seq = saveSeq.filter(x => x !== tid);
+    st.res[tid] = r; st.seq.push(tid);
+    const ev = evaluate(cat);
+    const before = evaluate0(cat, saveRes, saveSeq);
+    out[r] = {p: ev.p, same: Math.abs(ev.p - before) < 0.0005, z: zoneOf(cat, ev)};
+  });
+  st.res = saveRes; st.seq = saveSeq;
+  return out;
+}
+function evaluate0(cat, res, seq){
+  const st = sess(cat.id);
+  const r0 = st.res, s0 = st.seq;
+  st.res = res; st.seq = seq;
+  const p = evaluate(cat).p;
+  st.res = r0; st.seq = s0;
+  return p;
+}
+
+/* ═══════════════ 상태 ═══════════════ */
+let view = 'home';
+let curRegion = 'sh';
+let curCat = null;
+
+const side = $('side'), sideDim = $('sideDim'), inner = $('inner'), scrollEl = $('scroll');
+const topTitle = $('topTitle'), topSub = $('topSub'), backBtn = $('backBtn');
+const topActions = $('topActions');
+
+function catsOf(rid){ return CATS.filter(c => c.r === rid); }
+function groupsOf(rid){
+  const out = [];
+  catsOf(rid).forEach(c => {
+    let g = out.find(x => x.n === c.g);
+    if(!g){ g = {n:c.g, cats:[]}; out.push(g); }
+    g.cats.push(c);
+  });
+  return out;
+}
+function statusBadge(cat){
+  const st = S[cat.id];
+  if(!st || !st.seq.length) return '';
+  const ev = evaluate(cat);
+  const z = zoneOf(cat, ev);
+  if(z === 'pending' || z === 'noinfo') return '<span class="pbadge z-mid">' + (z === 'pending' ? '대기' : '기록') + '</span>';
+  const cls = (z === 'redout') ? 'z-out' : (z === 'red') ? 'z-in' : ZONE[z].cls;
+  return '<span class="pbadge ' + cls + '">' + pct(ev.p) + '</span>';
+}
+
+/* ═══════════════ 사이드바 ═══════════════ */
+function renderRegionGrid(){
+  $('regionGrid').innerHTML = REGIONS.map(r => {
+    const tested = catsOf(r.id).some(c => S[c.id] && S[c.id].seq.length);
+    return '<button type="button" class="rg-btn' + (r.id === curRegion ? ' on' : '') + '" data-region="' + r.id + '">' +
+      esc(r.n) + (tested ? '<span class="rg-dot" title="검사 기록 있음"></span>' : '') + '</button>';
+  }).join('');
+}
+function renderSideCats(){
+  const html = groupsOf(curRegion).map(g =>
+    '<div class="sc-group"><div class="sc-gname">' + esc(g.n) + '</div>' +
+    g.cats.map(c =>
+      '<button type="button" class="sc-item' + (c.id === curCat ? ' on' : '') + '" data-cat="' + c.id + '">' +
+        '<span class="sc-text"><span class="sc-name">' + esc(c.n) + (c.red ? '<span class="sc-red">위험신호</span>' : '') + '</span>' +
+        '<span class="sc-cue">' + esc(c.cue) + '</span></span>' + statusBadge(c) +
+      '</button>'
+    ).join('') + '</div>'
+  ).join('');
+  $('sideCats').innerHTML = html;
+}
+function renderSide(){ renderRegionGrid(); renderSideCats(); }
+
+/* ═══════════════ 화면: 홈 ═══════════════ */
+function renderHome(){
+  view = 'home'; curCat = null;
+  topTitle.textContent = '스페셜 테스트 내비';
+  topSub.textContent = '부위를 고르면 증상별 검사 순서를 안내합니다';
+  backBtn.style.display = 'none';
+  topActions.style.visibility = 'hidden';
+  const total = CATS.length;
+  const nTests = CATS.reduce((a,c) => a + c.tests.length, 0);
+  const nVid = CATS.reduce((a,c) => a + c.tests.filter(t => t.eb && t.eb.v).length, 0);
+  inner.innerHTML =
+    '<div class="home-hero"><div class="e-mark"></div>' +
+      '<h2>검사 전에 먼저 정하세요<br>무엇을 배제하고, 무엇을 확인할지</h2>' +
+      '<p>문진으로 의심 부위와 증상을 고르면 민감도·특이도 근거에 따라 검사 순서를 추천하고, 양성/음성 결과마다 가능성(사후확률)을 다시 계산합니다.</p>' +
+    '</div>' +
+    '<div class="rule-grid">' +
+      '<div class="rule out"><span class="rule-tag">SnNout · 배제</span><h3>민감도 높은 검사가 <b>음성</b>이면 → 배제</h3>' +
+        '<p>민감도가 높다 = 질환이 있으면 거의 다 양성. 그런데도 음성이면 질환이 없을 가능성이 높습니다.</p></div>' +
+      '<div class="rule in"><span class="rule-tag">SpPin · 확진</span><h3>특이도 높은 검사가 <b>양성</b>이면 → 확진 쪽</h3>' +
+        '<p>특이도가 높다 = 질환이 없으면 거의 다 음성. 그런데도 양성이면 질환이 있을 가능성이 높습니다.</p></div>' +
+    '</div>' +
+    '<div class="home-sec">부위 선택</div>' +
+    '<div class="region-grid">' + REGIONS.map(r =>
+      '<button type="button" class="region-card" data-region="' + r.id + '"><span class="rc-n">' + esc(r.n) + '</span>' +
+      '<span class="rc-en">' + esc(r.en) + '</span><span class="rc-c">증상 분류 ' + catsOf(r.id).length + '개</span></button>'
+    ).join('') + '</div>' +
+    '<div class="card"><div class="card-label">사용 순서</div><div class="steps">' +
+      '<div class="step"><div class="step-num">1</div><div>부위 → 증상 분류 선택 <span>— 문진에서 들은 증상과 가장 가까운 것</span></div></div>' +
+      '<div class="step"><div class="step-num">2</div><div>사전확률(낮음·중간·높음) 선택 <span>— 병력으로 판단한 의심 정도</span></div></div>' +
+      '<div class="step"><div class="step-num">3</div><div>추천 검사를 양성 기준대로 판정해 체크 <span>— 방법은 ▶ 영상, 결과에 따라 다음 검사가 바뀝니다</span></div></div>' +
+      '<div class="step"><div class="step-num">4</div><div>배제되면 감별 진단으로 이동 <span>— 기록 복사로 차트에 붙여넣기</span></div></div>' +
+    '</div></div>' +
+    '<div class="foot-note">' + REGIONS.length + '개 부위 · ' + total + '개 증상 분류 · ' + nTests + '개 검사 항목 · 전자책 영상 연결 ' + nVid + '개<br>정확도 연구(민감도·특이도 또는 우도비)가 있는 검사만 수록했습니다.<br>검사 방법은 각 검사의 ▶ 영상(전자책 영상)에서 확인하세요.</div>';
+  renderSide();
+  scrollEl.scrollTop = 0;
+}
+
+/* ═══════════════ 화면: 부위 ═══════════════ */
+function renderRegion(rid){
+  if(rid) curRegion = rid;
+  view = 'region'; curCat = null;
+  const r = REG[curRegion];
+  topTitle.textContent = r.n;
+  topSub.textContent = '증상 분류를 선택하세요';
+  backBtn.style.display = 'flex';
+  topActions.style.visibility = 'hidden';
+  inner.innerHTML =
+    '<div class="region-head"><h2>' + esc(r.n) + '</h2><p>환자가 말한 증상과 가장 가까운 분류를 고르세요.</p></div>' +
+    groupsOf(curRegion).map(g =>
+      '<div class="grp"><div class="grp-name">' + esc(g.n) + '</div>' +
+      g.cats.map(c =>
+        '<button type="button" class="cat-card" data-cat="' + c.id + '"><span class="cc-main">' +
+          '<span class="cc-n">' + esc(c.n) + (c.red ? '<span class="redtag">위험신호</span>' : '') + '</span>' +
+          '<span class="cc-cue">' + esc(c.cue) + '</span></span>' + statusBadge(c) +
+          '<svg class="cc-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>' +
+        '</button>'
+      ).join('') + '</div>'
+    ).join('');
+  renderSide();
+  scrollEl.scrollTop = 0;
+}
+
+/* ═══════════════ 화면: 검사 세션 ═══════════════ */
+function testMeta(t, cat){
+  const parts = [];
+  const rl = role(t);
+  parts.push('<span class="badge b-' + rl + '">' + ROLE_TXT[rl] + '</span>');
+  if(t.co){
+    parts.push('<span>단독 우도비 없음 — 클러스터 판정에만 사용</span>');
+    if(cat && cat.cl) parts.push('<span class="r-src">' + esc(cat.cl.s) + ' 클러스터</span>');
+  }else{
+    if(t.sn != null) parts.push('<span>민감도 <b>' + pctRaw(t.sn) + '</b></span>');
+    if(t.sp != null) parts.push('<span>특이도 <b>' + pctRaw(t.sp) + '</b></span>');
+    if(!t.nolr){
+      parts.push('<span>LR+ <b>' + fmtLR(LRp(t)) + '</b> · LR− <b>' + fmtLR(LRn(t)) + '</b></span>');
+    }
+    if(t.s) parts.push('<span class="r-src">' + esc(t.s) + '</span>');
+  }
+  return parts.join('');
+}
+function pnButtons(id, r, small, pv){
+  const tail = k => {
+    if(!pv) return '';
+    const x = pv[k];
+    return '<span class="pv">' + (x.same ? '확률 변화 없음' : '→ ' + pct(x.p)) + '</span>';
+  };
+  return '<div class="pn' + (small ? ' small' : '') + (pv ? ' pv-on' : '') + '">' +
+    '<button type="button" class="pos' + (r === '+' ? ' on' : '') + '" data-test="' + id + '" data-r="+" aria-pressed="' + (r === '+') + '"><span>양성' + (small ? '' : ' (+)') + '</span>' + tail('+') + '</button>' +
+    '<button type="button" class="neg' + (r === '-' ? ' on' : '') + '" data-test="' + id + '" data-r="-" aria-pressed="' + (r === '-') + '"><span>음성' + (small ? '' : ' (−)') + '</span>' + tail('-') + '</button>' +
+  '</div>';
+}
+function gaugeHTML(cat, ev){
+  const p = ev.p * 100, p0 = ev.p0 * 100;
+  const ro = cat.ro * 100, ri = cat.red ? 100 : cat.ri * 100;
+  return '<div class="gauge">' +
+      '<div class="g-zone g-out" style="width:' + Math.max(ro, .8) + '%"></div>' +
+      (cat.red ? '' : '<div class="g-zone g-in" style="width:' + (100 - ri) + '%"></div>') +
+      '<div class="g-fill" style="width:' + p + '%"></div>' +
+      '<div class="g-pre" style="left:' + p0 + '%" title="사전확률"></div>' +
+      '<div class="g-needle" style="left:' + p + '%"></div>' +
+    '</div>' +
+    '<div class="g-scale"><span>0%</span><span>배제 ≤' + (cat.ro * 100 < 1 ? (cat.ro * 100).toFixed(1) : Math.round(cat.ro * 100)) + '%' +
+      (cat.red ? '' : ' · 확진 ≥' + Math.round(cat.ri * 100) + '%') + '</span><span>100%</span></div>';
+}
+
+function renderSession(cid){
+  if(cid){ curCat = cid; curRegion = CAT[cid].r; }
+  view = 'cat';
+  const cat = CAT[curCat];
+  const st = sess(cat.id);
+  const ev = evaluate(cat);
+  const z = zoneOf(cat, ev);
+  const zi = ZONE[z];
+  const nx = nextTest(cat, ev);
+
+  topTitle.textContent = cat.n;
+  topSub.textContent = REG[cat.r].n + ' · ' + cat.en;
+  backBtn.style.display = 'flex';
+  topActions.style.visibility = 'visible';
+
+  /* 헤더 */
+  let h = '<div class="card"><div class="s-cue"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>' + esc(cat.cue) + '</span></div>' +
+    '<div class="pre-row"><div class="pre-lab">사전확률<small>문진으로 판단한 의심 정도</small></div><div class="seg" role="group" aria-label="사전확률">' +
+    cat.pre.map((v,i) => '<button type="button" data-pre="' + i + '" class="' + (st.pre === i ? 'on' : '') + '">' + PRE_LABELS[i] + ' ' + pct(v) + '</button>').join('') +
+    '</div></div></div>';
+
+  /* 확률 */
+  const applied = ev.steps.filter(s => s.how === 'ind').length;
+  h += '<div class="card prob"><div class="prob-top"><div class="prob-num">' + pct(ev.p) + '</div>' +
+    '<div class="prob-lab ' + zi.cls + '">' + zi.lab + '</div>' +
+    '<div class="pt-right">사전 <b>' + pct(ev.p0) + '</b> → 사후 <b>' + pct(ev.p) + '</b><br>시행 ' + ev.n + '개 · 반영 ' + (applied + (ev.clLR != null ? 1 : 0)) + '건' + (ev.clLR != null ? ' (클러스터 포함)' : '') + '</div></div>' +
+    gaugeHTML(cat, ev) +
+    '<div class="prob-msg ' + zi.cls + '"><span class="dot"></span><span>' + esc(zi.msg) + '</span></div></div>';
+
+  /* 다음 추천 */
+  if(nx){
+    const t = nx.t;
+    if(nx.stop){
+      h += '<div class="card next stop"><div class="card-label">추가로 확인하려면</div>' +
+        '<div class="stop-note">현재 결과로 <b>' + zi.lab + '</b> 판단이 가능해 검사 종료를 권합니다. 더 확인하고 싶다면:</div>';
+    }else{
+      h += '<div class="card next"><div class="card-label">다음 추천 검사</div>';
+    }
+    h += '<div class="next-head"><div class="next-name">' + esc(t.n) + '<span class="k">' + esc(t.k || '') + '</span></div>' + ebLink(t, true) + '</div>' +
+      (nx.stop ? '' : '<div class="next-why">' + esc(nx.why) + '</div>') +
+      pcLine(t, true) +
+      '<div class="next-meta">' + testMeta(t, cat) + '</div>' +
+      (t.tip ? '<div class="next-tip">' + esc(t.tip) + '</div>' : '') +
+      pnButtons(t.id, st.res[t.id], false, preview(cat, t.id)) + '</div>';
+  }else{
+    h += '<div class="card next stop"><div class="card-label">검사 완료</div><div class="stop-note">이 분류의 검사를 모두 기록했습니다. 결과는 위 확률과 아래 감별 진단을 참고해 종합하세요.</div></div>';
+  }
+
+  /* 클러스터 */
+  if(cat.cl){
+    const c = ev.cl;
+    const dots = cat.cl.items.map(id => '<i class="' + (st.res[id] === '+' ? 'p' : st.res[id] === '-' ? 'n' : '') + '"></i>').join('');
+    let sub;
+    if(c.done && c.lr != null) sub = '규칙이 확정되어 해당 항목의 개별 LR 대신 클러스터 LR ' + fmtLR(c.lr) + '을 적용했습니다 (검사 간 중복 반영 방지).';
+    else if(c.done) sub = '클러스터 규칙 구간에 해당하지 않아 각 검사의 개별 LR을 적용했습니다.';
+    else if(c.lr != null) sub = '잠정 판정입니다 — 남은 항목을 확인하면 확정됩니다.';
+    else sub = '항목을 모두(또는 판정이 확정될 만큼) 확인하면 연구에서 검증된 조합 LR이 적용됩니다. 그 전까지는 개별 LR로 계산합니다.';
+    h += '<div class="card"><div class="card-label">' + esc(cat.cl.n) + '<span class="cl-right">' + esc(cat.cl.s) + '</span></div>' +
+      '<div class="cl-status"><div class="cl-dots">' + dots + '</div><div class="cl-text">' + esc(c.t) + '</div></div>' +
+      '<div class="cl-sub">' + esc(sub) + '</div></div>';
+  }
+
+  /* 전체 검사 목록 */
+  const clDone = !!(ev.cl && ev.cl.done);
+  h += '<div class="card"><div class="card-label">검사 목록<span class="cl-right">탭해서 결과 기록 · 다시 누르면 취소</span></div>';
+  cat.tests.forEach((t, i) => {
+    const r = st.res[t.id];
+    const s = ev.steps.find(x => x.id === t.id);
+    const isNext = nx && !nx.stop && nx.t.id === t.id;
+    const inCl = cat.cl && cat.cl.items.indexOf(t.id) >= 0;
+    const muted = !r && clDone && inCl;
+    let applied = '';
+    if(r && s){
+      if(s.how === 'ind') applied = '<div class="r-applied ' + (r === '+' ? 'pos' : 'neg') + '">' + (r === '+' ? '양성' : '음성') + ' → LR ' + fmtLR(s.lr) + ' 반영</div>';
+      else if(s.how === 'cl') applied = '<div class="r-applied grey">' + (r === '+' ? '양성' : '음성') + ' → 클러스터 LR로 반영</div>';
+      else if(s.how === 'co') applied = '<div class="r-applied grey">' + (r === '+' ? '양성' : '음성') + ' → 클러스터 판정 대기</div>';
+      else if(s.how === 'na') applied = '<div class="r-applied grey">' + (r === '+' ? '양성' : '음성') + ' 기록 (근거 부족 — 계산 제외)</div>';
+      else applied = '<div class="r-applied grey">' + (r === '+' ? '양성' : '음성') + ' → 보고된 우도비 없음, 확률 변화 없음</div>';
+    }else if(muted){
+      applied = '<div class="r-applied grey">클러스터가 이미 확정되어 결과에 영향 없음</div>';
+    }
+    h += '<div class="row' + (r ? ' done' : '') + (isNext ? ' is-next' : '') + (muted ? ' muted' : '') + '">' +
+      '<div class="r-idx">' + (i + 1) + '</div>' +
+      '<div class="r-main"><div class="r-top"><div class="r-name">' + esc(t.n) + '<span class="k">' + esc(t.k || '') + '</span></div>' + ebLink(t, false) + '</div>' +
+      (isNext ? '' : pcLine(t, false)) +
+      '<div class="r-meta">' + testMeta(t, cat) + '</div>' + (t.tip && !isNext ? '<div class="r-tip">' + esc(t.tip) + '</div>' : '') + applied + '</div>' +
+      pnButtons(t.id, r, true) + '</div>';
+  });
+  h += '</div>';
+
+  /* 감별 */
+  if(cat.ddx && cat.ddx.length){
+    h += '<div class="card"><div class="card-label">감별 고려<span class="cl-right">결과는 분류별로 유지됩니다</span></div><div class="ddx">' +
+      cat.ddx.filter(id => CAT[id]).map(id => {
+        const c = CAT[id];
+        return '<button type="button" data-cat="' + id + '">' + (c.r !== cat.r ? esc(REG[c.r].n) + ' · ' : '') + esc(c.n) + statusBadge(c) + '</button>';
+      }).join('') + '</div></div>';
+  }
+
+  /* 메모·근거 */
+  h += '<div class="card"><div class="card-label">임상 메모</div><div class="note">' + esc(cat.note) + '</div>' +
+    '<div class="note-src">출처: ' + cat.refs.map(k => esc((REFS[k] || '').split('.')[0])).join(' · ') + '</div>' +
+    '<button type="button" class="link-btn" data-action="evidence">근거 자세히 보기</button></div>';
+
+  h += '<div class="foot-note">사후확률 = 사전확률 × 우도비(검사 간 독립 가정). 상관된 검사를 여러 개 곱하면 과대평가될 수 있어<br>검증된 클러스터가 있으면 클러스터 LR을 우선 적용합니다. 임상 판단 보조용입니다.</div>';
+
+  inner.innerHTML = h;
+  renderSide();
+}
+
+/* ═══════════════ 결과 기록 ═══════════════ */
+function setResult(tid, r){
+  const cat = CAT[curCat];
+  const st = sess(cat.id);
+  if(st.res[tid] === r){
+    delete st.res[tid];
+    st.seq = st.seq.filter(x => x !== tid);
+  }else{
+    if(!st.res[tid]) st.seq.push(tid);
+    st.res[tid] = r;
+  }
+  const keep = scrollEl.scrollTop;
+  renderSession();
+  scrollEl.scrollTop = keep;
+}
+
+/* ═══════════════ 기록 복사 ═══════════════ */
+function recordText(){
+  const d = new Date();
+  const lines = ['[이학적 검사 기록] ' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0')];
+  let any = false;
+  CATS.forEach(cat => {
+    const st = S[cat.id];
+    if(!st || !st.seq.length) return;
+    any = true;
+    const ev = evaluate(cat);
+    const z = zoneOf(cat, ev);
+    lines.push('');
+    lines.push('■ ' + REG[cat.r].n + ' · ' + cat.n);
+    lines.push('  사전확률 ' + pct(ev.p0) + ' (' + PRE_LABELS[st.pre] + ')');
+    st.seq.forEach(id => {
+      const t = cat.T[id], r = st.res[id];
+      const s = ev.steps.find(x => x.id === id);
+      lines.push('  · ' + t.n + ': ' + (r === '+' ? '양성' : '음성') + (s && s.lr != null ? ' (LR ' + fmtLR(s.lr) + ')' : ''));
+    });
+    if(cat.cl && ev.cl && ev.cl.lr != null) lines.push('  · ' + cat.cl.n + ': ' + ev.cl.t);
+    lines.push('  → 사후확률 ' + pct(ev.p) + ' · ' + ZONE[z].lab);
+  });
+  if(!any) return '';
+  lines.push('');
+  lines.push('※ 민감도·특이도 기반 확률 추정(검사 간 독립 가정) — 임상 판단 보조용');
+  return lines.join('\n');
+}
+async function copyRecord(){
+  const txt = recordText();
+  if(!txt){ toast('아직 기록된 검사 결과가 없습니다'); return; }
+  let ok = false;
+  try{ await navigator.clipboard.writeText(txt); ok = true; }catch(e){}
+  if(!ok){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      ok = document.execCommand('copy');
+      ta.remove();
+    }catch(e){ ok = false; }
+  }
+  if(ok) toast('평가 기록을 복사했습니다 — 차트에 붙여넣으세요');
+  else openModal('평가 기록', '<p>자동 복사가 막혀 있습니다. 아래 내용을 직접 복사해 주세요.</p><textarea style="width:100%;height:260px;font:12.5px/1.6 ui-monospace,Menlo,monospace;padding:10px;border:1px solid var(--paper-line);border-radius:8px" readonly>' + esc(txt) + '</textarea>');
+}
+let toastTimer = null;
+function toast(msg){
+  const el = $('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1900);
+}
+
+/* ═══════════════ 모달 ═══════════════ */
+function openModal(title, html){
+  $('modalTitle').textContent = title;
+  $('modalBody').innerHTML = html;
+  $('modal').classList.add('show');
+  $('modalBody').scrollTop = 0;
+}
+function closeModal(){ $('modal').classList.remove('show'); }
+
+function evidenceRows(cat){
+  return cat.tests.map(t =>
+    '<tr><td>' + esc(t.n) + '<span class="t-k">' + esc(t.k || '') + '</span>' + (t.pc ? '<span class="t-pc">양성: ' + esc(t.pc) + '</span>' : '') + '</td>' +
+    '<td class="num">' + (t.co ? '—' : pctRaw(t.sn)) + '</td><td class="num">' + (t.co ? '—' : pctRaw(t.sp)) + '</td>' +
+    '<td class="num">' + (t.co || t.nolr ? '—' : fmtLR(LRp(t))) + '</td><td class="num">' + (t.co || t.nolr ? '—' : fmtLR(LRn(t))) + '</td>' +
+    '<td>' + (t.co ? esc(cat.cl ? cat.cl.s : '') + ' 클러스터 항목' : esc(t.s || '')) + (t.nolr ? ' · 계산 제외' : '') + (t.eb ? '<span class="t-k">전자책 P.' + t.eb.p + '</span>' : '') + '</td></tr>'
+  ).join('');
+}
+function showEvidence(cat){
+  let h = '<h4>검사별 수치</h4><div class="tbl-wrap"><table class="tbl"><thead><tr><th>검사</th><th>민감도</th><th>특이도</th><th>LR+</th><th>LR−</th><th>출처</th></tr></thead><tbody>' +
+    evidenceRows(cat) + '</tbody></table></div>';
+  if(cat.cl){
+    h += '<h4>' + esc(cat.cl.n) + '</h4><p>항목: ' + cat.cl.items.map(id => esc(cat.T[id].n)).join(', ') + '</p>';
+  }
+  h += '<h4>임상 메모</h4><p>' + esc(cat.note) + '</p>';
+  h += '<h4>참고 문헌</h4><ul class="refs">' + cat.refs.map(k => '<li>' + esc(REFS[k] || k) + '</li>').join('') + '</ul>';
+  h += '<h4>계산 규칙</h4><ul><li>LR+ = 민감도 ÷ (1 − 특이도), LR− = (1 − 민감도) ÷ 특이도. 원문이 우도비를 직접 보고한 경우 그 값을 사용했습니다.</li>' +
+    '<li>100%로 보고된 민감도·특이도는 소표본 과대추정을 고려해 97%로 계산했습니다.</li>' +
+    '<li>LR+ 5 이상이면 "확진용", LR− 0.3 이하이면 "배제용"으로 표시했습니다.</li></ul>';
+  openModal(cat.n + ' · 근거', h);
+}
+function showAllEvidence(){
+  let h = '<p>이 도구에 들어간 모든 검사의 수치와 출처입니다. 부위 → 증상 분류 순서로 정리했습니다.</p>' +
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>검사</th><th>민감도</th><th>특이도</th><th>LR+</th><th>LR−</th><th>출처</th></tr></thead><tbody>';
+  REGIONS.forEach(r => {
+    catsOf(r.id).forEach(c => {
+      h += '<tr class="grp"><td colspan="6">' + esc(r.n) + ' · ' + esc(c.n) + '</td></tr>' + evidenceRows(c);
+    });
+  });
+  h += '</tbody></table></div><h4>참고 문헌</h4><ul class="refs">' +
+    Object.keys(REFS).map(k => '<li>' + esc(REFS[k]) + '</li>').join('') + '</ul>';
+  openModal('전체 근거표', h);
+}
+function showHelp(){
+  const h =
+    '<h4>핵심 원칙</h4>' +
+    '<ul><li><b>SnNout</b> — 민감도(Sn)가 높은 검사가 <b>음성(N)</b>이면 배제(out). 질환이 있으면 거의 양성이 나오는 검사인데 음성이니 질환이 없을 가능성이 큽니다.</li>' +
+    '<li><b>SpPin</b> — 특이도(Sp)가 높은 검사가 <b>양성(P)</b>이면 확진(in) 쪽. 질환이 없으면 거의 음성이 나오는 검사인데 양성이니 질환이 있을 가능성이 큽니다.</li>' +
+    '<li>그래서 순서는 <b>① 배제용(고민감도)으로 선별 → ② 양성이면 확진용(고특이도)으로 확인</b>입니다.</li></ul>' +
+    '<h4>우도비(LR)로 보는 검사의 힘</h4>' +
+    '<p>민감도·특이도를 하나로 합친 값이 우도비입니다. 사전확률(오즈)에 곱해 사후확률을 구합니다.</p>' +
+    '<div class="tbl-wrap"><table class="tbl lr-table" style="min-width:420px"><thead><tr><th>변화 크기</th><th>LR+ (양성일 때)</th><th>LR− (음성일 때)</th></tr></thead><tbody>' +
+    '<tr><td>크다 · 결론을 바꿈</td><td>10 이상</td><td>0.1 이하</td></tr>' +
+    '<tr><td>중간</td><td>5–10</td><td>0.1–0.2</td></tr>' +
+    '<tr><td>작다</td><td>2–5</td><td>0.2–0.5</td></tr>' +
+    '<tr><td>거의 없음</td><td>1–2</td><td>0.5–1</td></tr></tbody></table></div>' +
+    '<p>예) 사전확률 50%에서 LR+ 10인 검사가 양성 → 약 91%. LR− 0.1인 검사가 음성 → 약 9%.</p>' +
+    '<h4>사전확률 고르는 법</h4>' +
+    '<ul><li><b>낮음</b> — 감별 목록에 있지만 병력상 가능성이 낮음</li><li><b>중간</b> — 병력으로 반반, 가장 흔한 출발점</li><li><b>높음</b> — 전형적인 병력·기전</li>' +
+    '<li>골절·척수병증처럼 위험 신호 분류는 실제 유병률에 맞춰 낮은 값으로 설정되어 있습니다.</li></ul>' +
+    '<h4>다음 검사 추천 방식</h4>' +
+    '<ul><li>첫 검사는 해당 분류에서 권장 순서의 첫 번째(대개 배제용 또는 검증된 클러스터 항목)</li>' +
+    '<li>현재 확률이 50% 미만이면 배제력이 가장 큰 검사(LR− 최소), 50% 이상이면 확진력이 가장 큰 검사(LR+ 최대)를 추천</li>' +
+    '<li>배제(기본 ≤10%) 또는 확진(≥90%) 구간에 들어가면 검사 종료를 권합니다</li></ul>' +
+    '<h4>양성 기준 · 방법 영상</h4>' +
+    '<ul><li><b>양성 기준</b>은 그 검사의 민감도·특이도를 낸 연구가 양성으로 판정한 기준입니다. 다른 기준(예: 불안감 대신 통증)으로 판정하면 표시된 수치가 맞지 않습니다.</li>' +
+    '<li>여러 연구를 합친 메타분석 수치는 연구마다 기준이 조금씩 달라, 가장 널리 쓰인 기준을 적었습니다.</li>' +
+    '<li><b>▶ 영상</b>은 전자책 「물리치료 진단 및 평가」 해당 쪽의 검사 영상(유튜브)으로 연결됩니다. 인터넷 연결이 필요합니다.</li>' +
+    '<li>전자책 방법이 연구 방법과 다른 검사(Spurling, 움직이는 슬개골 불안 검사)는 영상을 연결하지 않았습니다.</li></ul>' +
+    '<h4>수록 기준</h4>' +
+    '<ul><li>정확도 연구에서 민감도·특이도(또는 우도비)가 보고된 검사만 수록했습니다. 민감도만 있거나 원 연구를 확인할 수 없는 검사는 뺐습니다.</li>' +
+    '<li>클러스터 항목(나이, 병력 등)은 단독 수치 대신 해당 클러스터 연구를 근거로 합니다.</li></ul>' +
+    '<h4>홈 화면에 앱으로 추가</h4>' +
+    '<ul><li><b>아이폰</b> — Safari로 이 주소를 열고 아래쪽 공유 버튼 → 「홈 화면에 추가」.</li>' +
+    '<li><b>안드로이드</b> — 크롬으로 열고 오른쪽 위 ⋮ → 「홈 화면에 추가」 또는 「앱 설치」.</li>' +
+    '<li>노란 <b>T</b> 아이콘으로 설치됩니다. 한 번 열어 두면 인터넷이 끊겨도 열립니다(영상은 인터넷 필요).</li>' +
+    '<li>카카오톡 등 앱 안에서 열었다면 메뉴의 「다른 브라우저로 열기」(아이폰은 「Safari로 열기」)로 먼저 옮기세요.</li></ul>' +
+    '<h4>꼭 알아둘 한계</h4>' +
+    '<ul><li>여러 검사의 LR을 곱하는 계산은 검사끼리 독립이라고 가정합니다. 실제로는 서로 상관되어 있어 과대평가될 수 있으므로 2–4개 검사로 판단하고, 검증된 클러스터가 있으면 클러스터 LR을 우선 적용합니다.</li>' +
+    '<li>수치는 각 연구의 대상자(수술 환자·운동선수 등)와 기준검사(관절경·MRI 등)에 따라 달라집니다. 출처는 "근거"에서 확인하세요.</li>' +
+    '<li>이 도구는 임상 추론 보조용이며 진단을 대신하지 않습니다. 위험 신호가 배제되지 않으면 의뢰하세요.</li></ul>';
+  openModal('사용법 · 원리', h);
+}
+
+/* ═══════════════ 이벤트 ═══════════════ */
+function closeSide(){ side.classList.remove('open'); sideDim.classList.remove('show'); }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-test]');
+  if(t){ setResult(t.dataset.test, t.dataset.r); return; }
+  const pr = e.target.closest('[data-pre]');
+  if(pr && view === 'cat'){ sess(curCat).pre = +pr.dataset.pre; renderSession(); return; }
+  const rg = e.target.closest('[data-region]');
+  if(rg){ renderRegion(rg.dataset.region); if(rg.classList.contains('region-card')) closeSide(); return; }
+  const c = e.target.closest('[data-cat]');
+  if(c){ renderSession(c.dataset.cat); scrollEl.scrollTop = 0; closeSide(); return; }
+  const a = e.target.closest('[data-action="evidence"]');
+  if(a && curCat){ showEvidence(CAT[curCat]); return; }
+});
+/* 사이드바의 부위 버튼은 메뉴를 열어 둔 채 목록만 바꾸고, 본문의 부위 카드는 메뉴를 닫습니다 */
+$('brandHome').addEventListener('click', () => { renderHome(); closeSide(); });
+$('brandHome').addEventListener('keydown', e => { if(e.key === 'Enter'){ renderHome(); closeSide(); } });
+backBtn.addEventListener('click', () => { if(view === 'cat') renderRegion(); else renderHome(); });
+$('evBtn').addEventListener('click', () => { if(curCat) showEvidence(CAT[curCat]); });
+$('copyBtn').addEventListener('click', copyRecord);
+$('resetBtn').addEventListener('click', () => {
+  if(!curCat) return;
+  const st = sess(curCat);
+  if(!st.seq.length){ toast('초기화할 결과가 없습니다'); return; }
+  st.res = {}; st.seq = [];
+  renderSession(); toast('이 분류의 결과를 초기화했습니다');
+});
+/* 새 환자: 결과가 있으면 한 번 더 눌러야 지웁니다 (confirm() 창을 무시하는 앱 내 브라우저 대비) */
+const NEWPT_LABEL = '새 환자 (전체 초기화)';
+let newPtArmed = 0, newPtTimer = null;
+function disarmNewPt(){ newPtArmed = 0; clearTimeout(newPtTimer); $('newPtBtn').textContent = NEWPT_LABEL; $('newPtBtn').classList.remove('armed'); }
+$('newPtBtn').addEventListener('click', () => {
+  const any = Object.keys(S).some(k => S[k].seq.length);
+  if(any && !(newPtArmed && Date.now() - newPtArmed < 4000)){
+    newPtArmed = Date.now();
+    $('newPtBtn').textContent = '한 번 더 누르면 모두 지웁니다';
+    $('newPtBtn').classList.add('armed');
+    clearTimeout(newPtTimer); newPtTimer = setTimeout(disarmNewPt, 4000);
+    return;
+  }
+  disarmNewPt();
+  Object.keys(S).forEach(k => delete S[k]);
+  renderHome(); closeSide(); toast('새 환자로 시작합니다');
+});
+$('helpBtn').addEventListener('click', () => { showHelp(); closeSide(); });
+$('allEvBtn').addEventListener('click', () => { showAllEvidence(); closeSide(); });
+$('modalClose').addEventListener('click', closeModal);
+$('modal').addEventListener('click', e => { if(e.target === $('modal')) closeModal(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+$('mobileToggle').addEventListener('click', () => { side.classList.add('open'); sideDim.classList.add('show'); });
+sideDim.addEventListener('click', closeSide);
+
+/* ═══════════════ 시작 ═══════════════ */
+renderHome();
+
+</script>
+<script>
+/* ═══════════════ 홈 화면 앱(설치) ═══════════════
+   이 도구 전용 서비스워커를 이 페이지 범위로만 등록합니다 — 같은 사이트의 다른 도구와 범위·캐시가 겹치지 않습니다.
+   https 주소(또는 내 컴퓨터 localhost)에서만 동작하고, 파일로 직접 열면 건너뜁니다. */
+try{
+  var secureHost = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if('serviceWorker' in navigator && secureHost && window.top === window.self){
+    window.addEventListener('load', function(){
+      try{ navigator.serviceWorker.register('special-test-navi-sw.js', {scope: './special-test-navi.html'}).catch(function(){}); }catch(e){}
+    });
+  }
+}catch(e){}
+</script>
+</body>
+</html>
