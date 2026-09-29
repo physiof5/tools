@@ -2,9 +2,9 @@
 <!-- 스페셜 테스트 내비 v3 · MVP 공개판 (2026-09)
   [홈 화면 앱] special-test-navi-manifest.json · special-test-navi-sw.js · special-test-navi-icon-*.png 를 같은 폴더에 함께 올려야 합니다.
    - 안드로이드 크롬 「앱 설치/홈 화면에 추가」, 아이폰 Safari 「홈 화면에 추가」 시 노란 T 아이콘으로 표시
-   - 이름·범위·캐시가 모두 이 도구 전용이라 같은 사이트의 다른 도구(임상 추론 파트너 등)와 겹치지 않습니다
+   - 주소 끝의 .html 유무와 관계없이 설치됩니다(Netlify 등). 이름·범위·캐시가 모두 이 도구 전용이라 같은 사이트의 다른 도구(임상 추론 파트너 등)와 겹치지 않습니다
    - 한 번 열어 두면 인터넷이 끊겨도 마지막으로 받은 화면이 열립니다 (전자책 영상 링크는 인터넷 필요)
-  [공유 미리보기] special-test-navi-og.png — 카카오톡·문자로 주소를 보낼 때 뜨는 그림 (https://physiof5.github.io/tools/special-test-navi.html 기준)
+  [공유 미리보기] special-test-navi-og.png — 카카오톡·문자로 주소를 보낼 때 뜨는 그림 (https://physiof5.netlify.app/special-test-navi.html 기준)
   [탭 아이콘] special-test-navi-icon.svg — T 아이콘 원본(수정용)
   [v3 내용]
   · 부위 → 증상 분류 → 근거 기반 검사 순서 (SnNout 선별 → SpPin 확인)
@@ -32,8 +32,8 @@
 <meta property="og:site_name" content="수술재활 송쌤">
 <meta property="og:title" content="스페셜 테스트 내비 · 송쌤">
 <meta property="og:description" content="근거 기반 검사 순서 · 양성 기준 · 우도비(LR) 사후확률 — 부위와 증상을 고르면 다음 검사를 안내합니다">
-<meta property="og:url" content="https://physiof5.github.io/tools/special-test-navi.html">
-<meta property="og:image" content="https://physiof5.github.io/tools/special-test-navi-og.png">
+<meta property="og:url" content="https://physiof5.netlify.app/special-test-navi.html">
+<meta property="og:image" content="https://physiof5.netlify.app/special-test-navi-og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="노란 T 아이콘과 스페셜 테스트 내비 제목">
@@ -1901,7 +1901,7 @@ try{
   var secureHost = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   if('serviceWorker' in navigator && secureHost && window.top === window.self){
     window.addEventListener('load', function(){
-      try{ navigator.serviceWorker.register('special-test-navi-sw.js', {scope: './special-test-navi.html'}).catch(function(){}); }catch(e){}
+      try{ navigator.serviceWorker.register('special-test-navi-sw.js', {scope: './special-test-navi'}).catch(function(){}); }catch(e){}
     });
   }
 }catch(e){}
