@@ -597,7 +597,7 @@ button.set-row:hover{background:var(--surface-2);}
     <div class="pad panel">
       <p class="note" id="h-pool"></p>
       <p class="note">
-        의료기사 등에 관한 법률 · 의료법 · 감염병의 예방 및 관리에 관한 법률의
+        의료법 · 의료기사 등에 관한 법률 · 장애인복지법 · 노인복지법 · 국민건강보험법의
         현행 조문을 근거로 자체 제작했습니다.
         국가고시 기출문제와 수험서는 사용하지 않았습니다.
         모든 문항을 <b>법제처 조문 원문과 대조</b>해 확정했습니다. 법령이 개정되면 다시 대조합니다.
@@ -3070,6 +3070,8 @@ if(!S.star) S.star = {};
 if(!S.miss) S.miss = {};
 if(!S.lawStats) S.lawStats = {};
 if(!S.days) S.days = {};
+if(typeof S.streak !== "number") S.streak = 0;   // 없으면 streak++가 NaN이 된다
+if(typeof S.xp !== "number") S.xp = 0;
 
 /* ══ 문항 풀 — 필터 단일 진입점 ══
    거르는 축이 둘이다. 조문 단위로는 거르지 않는다.
@@ -3103,7 +3105,7 @@ function parked(){
 }
 /* 보관 내역을 법령별로 적는다. 직종마다 보관 법령이 다르므로 문구를 박아 두면
    방사선사에게 국민건강보험법 이야기가 뜨는 식으로 어긋난다. */
-const PARK_WHY = { "의료법":"벌칙", "국민건강보험법":"급여·이의신청" };
+const PARK_WHY = { "의료법":"벌칙", "국민건강보험법":"급여·건강검진·이의신청" };
 function parkLabel(){
   const by = {};
   parked().forEach(q => by[q.law] = (by[q.law]||0) + 1);
@@ -3116,10 +3118,32 @@ function parkLabel(){
 const DAY = 864e5;
 const dayKey = (d=new Date()) => Math.floor((d.getTime() - d.getTimezoneOffset()*6e4)/DAY);
 const GAP = [0,1,2,4,7,14];   // 박스 1→다음날, 2→2일, 3→4일, 4→7일, 5→14일
-const TODAY = dayKey();
+let TODAY = dayKey();
+/* 앱을 켜 둔 채 자정을 넘기면 '오늘'이 어제로 굳는다. 설치형 앱은 새로 열리지 않고
+   이어서 켜지는 게 보통이라, 전날 밤 켜 둔 앱으로 아침에 공부하면 복습 카드가 안 나오고
+   스트릭·기록이 어제로 들어갔다. 그리거나 채점하기 직전마다 다시 잰다. 바뀌면 true. */
+function syncToday(){ const d = dayKey(); if(d !== TODAY){ TODAY = d; return true; } return false; }
+
+/* 화면에 보일 연속 학습일 — 오늘도 어제도 안 풀었으면 이미 끊긴 것이다.
+   저장값은 다음에 풀 때 1부터 다시 세므로 그대로 두고, 보여 줄 때만 0으로 본다. */
+function streakNow(){ return (S.lastDay === TODAY || S.lastDay === TODAY - 1) ? (S.streak || 0) : 0; }
+
+/* 출석과 기간별 기록은 답할 때마다 바로 반영한다(첫 출제만 — 재출제는 세지 않는다). */
+function creditDay(ok){
+  if(S.lastDay !== TODAY){
+    S.streak = (S.lastDay === TODAY - 1) ? (S.streak || 0) + 1 : 1;
+    S.lastDay = TODAY;
+  }
+  const d = S.days[TODAY] || (S.days[TODAY] = {n:0, r:0, s:0});   // 기간별 통계의 원천
+  d.n++; if(ok) d.r++;
+}
+function addTime(secs){
+  const d = S.days[TODAY] || (S.days[TODAY] = {n:0, r:0, s:0});
+  d.s += secs;
+}
 
 /* ══ 세션 구성: 복습 12 + 신규 6 + 어제 오답 2 ══ */
-/* 하루 목표 — 기본 20문항. 5~100 사이에서 5단위로 고른다. */
+/* 하루 목표 — 기본 20문항. 5~50 사이에서 5단위로 고른다. */
 /* 상한 50 — 한 문항이 짧아 50문항이면 20분쯤이다. 그 이상은 '하루 10분'이라는
    이 앱의 성격과 멀어져서 열어 두지 않는다. */
 const GOAL_MIN = 5, GOAL_MAX = 50, GOAL_DEFAULT = 20;
@@ -3130,14 +3154,17 @@ function goal(){
 /* 세션 구성 비율은 6:3:1 — 목표 20문항이면 복습 12 · 신규 6 · 어제 오답 2가 된다.
    목표를 바꿔도 이 비율은 그대로 간다. */
 function sessionMix(g){
-  const rev = Math.round(g * 0.6), fresh = Math.round(g * 0.3);
-  return { rev, fresh, wrong: Math.max(1, g - rev - fresh) };
+  /* 복습을 나머지로 계산해 합이 늘 목표와 같게 한다. 예전 식은 목표 5에서
+     3+2+1=6이 되어 '어제 틀린 것' 자리가 한 번도 채워지지 않았다. */
+  const fresh = Math.round(g * 0.3), wrong = Math.max(1, Math.round(g * 0.1));
+  return { rev: g - fresh - wrong, fresh, wrong };
 }
 
 /* 홈에 보여 줄 오늘 구성 — buildSession과 같은 순서로 센다.
    먼저 비율대로 담고, 남는 자리는 복습 → 신규 순으로 채운다.
    여기서 어림잡으면 "복습 0 · 신규 3"인데 실제로는 10문항이 나오는 식으로 어긋난다. */
 function todayPlan(){
+  syncToday();
   const P = pool(), G = goal(), mix = sessionMix(G);
   let due = 0, fresh = 0, mast = 0;
   P.forEach(q=>{
@@ -3155,6 +3182,7 @@ function todayPlan(){
 }
 
 function buildSession(){
+  syncToday();
   const P = pool();
   const G = goal(), mix = sessionMix(G);
   const due=[], fresh=[];
@@ -3164,7 +3192,10 @@ function buildSession(){
     else if(c.due <= TODAY) due.push(q);
   });
   due.sort((a,b)=> S.cards[a.id].due - S.cards[b.id].due);
-  const wrongPool = P.filter(q=> S.lastWrong.includes(q.id));
+  /* '어제 틀린 것'은 기한이 된 카드 중에서만 고른다. 전체에서 고르면 오늘 틀린 카드
+     (1박스, 내일 기한)가 같은 날 두 번째 세션에 다시 나와 맞히는 순간 2박스로 올라가
+     하루 간격을 건너뛰었고, 홈이 약속한 문항 수와 실제 세션도 어긋났다. */
+  const wrongPool = due.filter(q=> S.lastWrong.includes(q.id));
 
   const picked=[], seen=new Set();
   const take = (arr,n)=> arr.forEach(q=>{ if(picked.length<G && n>0 && !seen.has(q.id)){ picked.push(q); seen.add(q.id); n--; }});
@@ -3223,9 +3254,10 @@ $("theme-grid").onclick = e => {
 
 /* ══ 설정 ══ */
 function renderSet(){
+  syncToday();
   const P = pool(), park = parked().length;
   $("set-job").textContent = jobName(S.job) || "직종 미선택";
-  $("set-sub").textContent = `법규보카 · 연속 학습 ${S.streak || 0}일`;
+  $("set-sub").textContent = `법규보카 · 연속 학습 ${streakNow()}일`;
   $("set-pool").textContent =
     `${P.length}문항` + (park ? ` · 출제범위 밖 ${park}문항 보관 중` : ``);
   $("set-note").textContent = S.job
@@ -3302,12 +3334,13 @@ function resetProgress(){
   store.save(S);
 }
 $("set-reset").onclick = ()=>{
+  syncToday();
   const n = pool().filter(q=>S.cards[q.id]).length;
   const note = noteItems().length;
   const days = Object.keys(S.days||{}).length;
   $("reset-detail").innerHTML =
     `학습한 문항 <b>${n}개</b> · 오답 노트 <b>${note}개</b> · 기록된 날 <b>${days}일</b> · `+
-    `연속 학습 <b>${S.streak||0}일</b>`;
+    `연속 학습 <b>${streakNow()}일</b>`;
   $("reset-sheet").hidden = false;
 };
 const closeReset = ()=>{ $("reset-sheet").hidden = true; };
@@ -3418,6 +3451,7 @@ function paintLadder(){
   });
 }
 function renderStat(){
+  syncToday();
   paintLadder();
   document.querySelectorAll("[data-stat-tab]").forEach(b =>
     b.setAttribute("aria-selected", String(b.dataset.statTab === statTab)));
@@ -3430,7 +3464,7 @@ function renderStat(){
   let totN = 0, totS = 0;
   Object.values(days).forEach(d => { totN += d.n; totS += d.s; });
   $("st-today").innerHTML  = `${today.n}<small>문항</small>`;
-  $("st-streak").innerHTML = `${S.streak||0}<small>일</small>`;
+  $("st-streak").innerHTML = `${streakNow()}<small>일</small>`;
   $("st-total").innerHTML  = `${totN}<small>문항</small>`;
   $("st-time").textContent = hhmmss(totS);
 
@@ -3449,7 +3483,7 @@ function renderStat(){
   const wk = week.reduce((a,w)=>({n:a.n+w.n, r:a.r+w.r}), {n:0, r:0});
   $("st-week-note").innerHTML = wk.n
     ? `최근 7일 동안 <b>${wk.n}문항</b>을 풀었고 정답률은 <b>${Math.round(wk.r/wk.n*100)}%</b>입니다.`
-    : `아직 기록이 없습니다. 오늘 20문항이면 약 8분입니다.`;
+    : `아직 기록이 없습니다. 오늘 ${goal()}문항이면 약 ${Math.max(3, Math.round(goal()*0.4))}분입니다.`;
 
   /* 과목별 */
   const row = (name, st) => {
@@ -3492,6 +3526,7 @@ const LADDER_COLORS = ["var(--line-2)","var(--wrong)","var(--gold)","var(--accen
 const LADDER_LABEL  = ["미학습","1박스","2박스","3박스","4박스","5박스"];
 
 function renderHome(){
+  syncToday();
   const P = pool();
   const buckets=[0,0,0,0,0,0];
   let reviewN=0;
@@ -3505,14 +3540,14 @@ function renderHome(){
   const total = plan.total;
 
   $("h-job").querySelector("span").textContent = jobName(S.job) + " · 의료관계법규";
-  $("h-streak").textContent = S.streak;
+  $("h-streak").textContent = streakNow();
   $("h-due").textContent   = total;
-  $("h-min").textContent   = Math.max(3, Math.round(total * 0.4));
+  $("h-min").textContent   = total ? Math.max(3, Math.round(total * 0.4)) : 0;
   $("h-rev").textContent   = plan.rev;
   $("h-new").textContent   = plan.nw;
   $("h-mast").textContent  = plan.mast;
   $("h-goal").textContent  = goal();
-  $("go").textContent = total ? "학습 시작" : "오늘 복습 완료 · 미리 풀기";
+  $("go").textContent = total ? "학습 시작" : `오늘 복습 완료 · ${goal()}문항 미리 풀기`;
   $("go").disabled = P.length === 0;
 
   const lawBox=$("h-laws"); lawBox.innerHTML="";
@@ -3542,11 +3577,16 @@ function renderHome(){
 
 /* ══ 세션 ══ */
 let Q=[], idx=0, retry=[], replaying=false, answered=false;
+/* 빠른 두 번 탭 막기 — '다음'이 나타나고 사라지며 버튼 자리가 움직여서, 두 번째 탭이
+   다른 버튼에 떨어졌다(다음 문제를 보기도 전에 답하거나, 해설을 건너뜀). 문제를 띄우거나
+   채점한 직후 0.35초 동안의 탭은 무시한다. 화면 전환 자체는 늦추지 않는다. */
+let tapLock = 0;
+const locked = () => Date.now() < tapLock;
 let sess = {right:0, wrong:0, xp:0, promoted:0, missed:[], t0:0};
 
 function startSession(){
   Q = buildSession();
-  if(!Q.length) Q = shuffle(pool()).slice(0,20);
+  if(!Q.length) Q = shuffle(pool()).slice(0, goal());   // 미리 풀기도 하루 목표만큼
   if(!Q.length) return;
   idx=0; retry=[]; replaying=false;
   sess = {right:0, wrong:0, xp:0, promoted:0, missed:[], t0:Date.now()};
@@ -3557,6 +3597,7 @@ const markNums = s => s.replace(/(\d[\d,]*\s*(?:천만원|만원|개월|년|일|
 
 function renderQ(){
   answered=false;
+  tapLock = Date.now() + 350;
   const q = Q[idx];
   $("q-track").style.width = (idx / Q.length * 100) + "%";
   $("q-count").textContent = `${Math.min(idx+1, Q.length)}/${Q.length}`;
@@ -3586,7 +3627,7 @@ function buildChoices(host, q){
     b.className="opt";
     b.innerHTML=`<span class="k">${i+1}</span><span>${text}</span>`;
     b.onclick = ()=>{
-      if(answered) return;
+      if(answered || locked()) return;
       const ok = text === q.answer;
       [...wrap.children].forEach(el=>{
         el.disabled = true;
@@ -3614,7 +3655,7 @@ function buildNumpad(host, q){
     b.className = "key" + (/[⌫확]/.test(k) ? " key-fn" : "");
     b.textContent=k;
     b.onclick=()=>{
-      if(answered) return;
+      if(answered || locked()) return;
       if(k==="⌫") val=val.slice(0,-1);
       else if(k==="확인"){
         if(!val) return;
@@ -3635,6 +3676,8 @@ function buildNumpad(host, q){
 
 function grade(q, ok){
   answered = true;
+  tapLock = Date.now() + 350;
+  syncToday();
 
   if(!replaying){
     /* 정답률 통계는 본 출제만 센다. 종료 직전 재출제는 방금 답을 본 직후라
@@ -3656,6 +3699,10 @@ function grade(q, ok){
       sess.missed.push(q); retry.push(q);
       S.miss[q.id] = (S.miss[q.id] || 0) + 1;   // 2번째부터 오답 노트에 자동으로 담긴다
     }
+    /* 답할 때마다 저장한다. 세션 끝에서만 저장하면 중간에 앱을 닫는 순간
+       — 폰에서는 이게 보통이다 — 그 세션의 박스 이동과 기록이 전부 사라졌다. */
+    creditDay(ok);
+    store.save(S);
   }
 
   const fb=document.createElement("div");
@@ -3676,6 +3723,7 @@ function grade(q, ok){
 }
 
 $("next").onclick = ()=>{
+  if(locked()) return;
   idx++;
   if(idx >= Q.length){
     if(retry.length){                       // 종료 직전 오답 1회 재출제
@@ -3689,24 +3737,22 @@ $("next").onclick = ()=>{
 
 /* ══ 결과 ══ */
 function finish(){
+  syncToday();
   const total = sess.right + sess.wrong;
   const pct = total ? Math.round(sess.right/total*100) : 0;
 
-  if(S.lastDay === TODAY - 1) S.streak++;
-  else if(S.lastDay !== TODAY) S.streak = 1;
-  S.lastDay = TODAY;
-
+  /* 출석(스트릭)과 푼 문항 수는 답할 때마다 이미 반영했다(creditDay).
+     여기서는 걸린 시간·XP·다음 세션의 '어제 틀린 것'만 정리한다. */
   sess.xp += 50 + Math.min(S.streak*5, 100);
   S.xp += sess.xp;
   S.lastWrong = sess.missed.map(q=>q.id);
 
   const secs = Math.round((Date.now()-sess.t0)/1000);
-  const d = S.days[TODAY] || (S.days[TODAY] = {n:0, r:0, s:0});   // 기간별 통계의 원천
-  d.n += total; d.r += sess.right; d.s += secs;
+  addTime(secs);
   store.save(S);
 
   $("r-pct").textContent  = pct;
-  $("r-sub").textContent  = `${total}문항 중 ${sess.right}문항 정답 · ${S.streak}일 연속 학습`;
+  $("r-sub").textContent  = `${total}문항 중 ${sess.right}문항 정답 · ${streakNow()}일 연속 학습`;
   $("r-xp").textContent   = "+" + sess.xp;
   $("r-up").textContent   = sess.promoted;
   $("r-time").textContent = Math.floor(secs/60) + ":" + String(secs%60).padStart(2,"0");
@@ -3714,7 +3760,9 @@ function finish(){
   $("r-misstitle").textContent = sess.missed.length ? "다시 볼 문항" : "오늘의 기록";
   const box=$("r-miss"); box.innerHTML="";
   if(!sess.missed.length){
-    box.innerHTML = `<p class="allright">전부 맞혔습니다. 모든 카드가 한 박스씩 올라갔어요.</p>`;
+    box.innerHTML = `<p class="allright">전부 맞혔습니다. ` + (sess.promoted
+      ? `카드 ${sess.promoted}개가 한 박스씩 올라갔어요.`
+      : `이미 5박스인 카드는 그대로 숙달로 남습니다.`) + `</p>`;
   }else{
     sess.missed.forEach(q=>{
       const d=document.createElement("div");
@@ -3731,7 +3779,26 @@ function finish(){
 /* ══ 이벤트 ══ */
 $("go").onclick   = startSession;
 $("home").onclick = ()=>{ renderHome(); show("home"); };
-$("quit").onclick = ()=>{ store.save(S); renderHome(); show("home"); };
+$("quit").onclick = ()=>{
+  /* 중간에 나가도 답한 만큼은 이미 저장돼 있다(grade). 걸린 시간과 틀린 목록만 더한다. */
+  syncToday();
+  if(sess.right + sess.wrong){
+    addTime(Math.round((Date.now()-sess.t0)/1000));
+    S.lastWrong = sess.missed.map(q=>q.id);
+  }
+  store.save(S); renderHome(); show("home");
+};
+
+/* 백그라운드에 있다가 돌아왔을 때 날짜가 바뀌었으면 보이는 화면을 새로 그린다 */
+function onResume(){
+  if(!syncToday()) return;
+  if(!screens.home.hidden) renderHome();
+  else if(!screens.stat.hidden) renderStat();
+  else if(!screens.set.hidden) renderSet();
+}
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "visible") onResume(); });
+window.addEventListener("pageshow", onResume);
+window.addEventListener("focus", onResume);
 
 /* ══ 부팅 ══ */
 applyTheme(loadThemeMode(), false);   // 저장된 값에 화면만 맞춘다 — 여기서 저장하지 않는다
