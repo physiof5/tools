@@ -3577,6 +3577,10 @@ function renderHome(){
 
 /* ══ 세션 ══ */
 let Q=[], idx=0, retry=[], replaying=false, answered=false;
+/* 미리 풀기 — 복습·신규가 없는 날의 연습 세션. 박스와 다음 복습일을 움직이지 않는다.
+   움직이면 미리 풀기를 반복해 하루 만에 전부 5박스가 됐다(195문항 기준 약 2,000문항).
+   간격 반복은 '시간이 지나도 기억하는가'를 재는 것이라, 같은 날 다시 맞힌 것은 승급 근거가 아니다. */
+let preview=false;
 /* 빠른 두 번 탭 막기 — '다음'이 나타나고 사라지며 버튼 자리가 움직여서, 두 번째 탭이
    다른 버튼에 떨어졌다(다음 문제를 보기도 전에 답하거나, 해설을 건너뜀). 문제를 띄우거나
    채점한 직후 0.35초 동안의 탭은 무시한다. 화면 전환 자체는 늦추지 않는다. */
@@ -3586,7 +3590,8 @@ let sess = {right:0, wrong:0, xp:0, promoted:0, missed:[], t0:0};
 
 function startSession(){
   Q = buildSession();
-  if(!Q.length) Q = shuffle(pool()).slice(0, goal());   // 미리 풀기도 하루 목표만큼
+  preview = !Q.length;
+  if(preview) Q = shuffle(pool()).slice(0, goal());   // 미리 풀기도 하루 목표만큼
   if(!Q.length) return;
   idx=0; retry=[]; replaying=false;
   sess = {right:0, wrong:0, xp:0, promoted:0, missed:[], t0:Date.now()};
@@ -3607,7 +3612,8 @@ function renderQ(){
     `<span class="chip chip-type">${TYPE_NAME[q.type]}</span>` +
     `<span class="chip">${q.law} ${q.art}</span>` +
     (isNew ? `<span class="chip chip-new">새 문항</span>` : `<span class="chip">${S.cards[q.id].box}박스</span>`) +
-    (replaying ? `<span class="chip chip-new">다시 풀기</span>` : ``);
+    (replaying ? `<span class="chip chip-new">다시 풀기</span>` : ``) +
+    (preview ? `<span class="chip">미리 풀기 · 박스 그대로</span>` : ``);
 
   $("q-text").innerHTML = markNums(q.q);
   $("q-fb").innerHTML = "";
@@ -3689,7 +3695,11 @@ function grade(q, ok){
     ls.seen++; if(ok) ls.right++;
 
     const c = S.cards[q.id] || (S.cards[q.id] = {box:1, due:TODAY});
-    if(ok){
+    if(preview){                              // 박스·복습일 그대로. 기록만 남긴다
+      if(ok){ sess.right++; sess.xp += 10; }
+      else{ sess.wrong++; sess.xp += 2; sess.missed.push(q); retry.push(q);
+            S.miss[q.id] = (S.miss[q.id] || 0) + 1; }
+    }else if(ok){
       if(c.box < 5){ c.box++; sess.promoted++; }
       c.due = TODAY + GAP[c.box];
       sess.right++; sess.xp += 10;
@@ -3745,7 +3755,7 @@ function finish(){
      여기서는 걸린 시간·XP·다음 세션의 '어제 틀린 것'만 정리한다. */
   sess.xp += 50 + Math.min(S.streak*5, 100);
   S.xp += sess.xp;
-  S.lastWrong = sess.missed.map(q=>q.id);
+  if(!preview) S.lastWrong = sess.missed.map(q=>q.id);
 
   const secs = Math.round((Date.now()-sess.t0)/1000);
   addTime(secs);
@@ -3760,7 +3770,9 @@ function finish(){
   $("r-misstitle").textContent = sess.missed.length ? "다시 볼 문항" : "오늘의 기록";
   const box=$("r-miss"); box.innerHTML="";
   if(!sess.missed.length){
-    box.innerHTML = `<p class="allright">전부 맞혔습니다. ` + (sess.promoted
+    box.innerHTML = `<p class="allright">전부 맞혔습니다. ` + (preview
+      ? `미리 풀기라 박스는 그대로예요. 다음 복습일에 다시 맞히면 올라갑니다.`
+      : sess.promoted
       ? `카드 ${sess.promoted}개가 한 박스씩 올라갔어요.`
       : `이미 5박스인 카드는 그대로 숙달로 남습니다.`) + `</p>`;
   }else{
@@ -3769,7 +3781,7 @@ function finish(){
       d.className="miss-item";
       d.innerHTML=`<p>${markNums(q.q)}</p>
         <div class="a">${q.answer}</div>
-        <div class="s">${q.law} ${q.art} · 1박스로 복귀</div>`;
+        <div class="s">${q.law} ${q.art} · ${preview ? "미리 풀기 — 박스 그대로" : "1박스로 복귀"}</div>`;
       box.appendChild(d);
     });
   }
@@ -3784,7 +3796,7 @@ $("quit").onclick = ()=>{
   syncToday();
   if(sess.right + sess.wrong){
     addTime(Math.round((Date.now()-sess.t0)/1000));
-    S.lastWrong = sess.missed.map(q=>q.id);
+    if(!preview) S.lastWrong = sess.missed.map(q=>q.id);
   }
   store.save(S); renderHome(); show("home");
 };
